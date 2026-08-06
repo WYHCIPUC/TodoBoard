@@ -1,13 +1,17 @@
 {
   "name": "linggankanban",
-  "version": "1.0.0",
+  "version": "2.0.0-beta.1",
   "private": true,
-  "description": "灵感来袭·待办看板：本地灵感/项目收集工具（粘贴链接自动解析、分类、研究笔记）",
+  "description": "灵感来袭：本地优先的链接收集、研究与待办看板",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "doctor": "node scripts/doctor.js",
+    "package:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-release.ps1",
+    "package:portable": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-portable.ps1",
     "test": "node scripts/run-tests.js",
-    "check": "node --check server.js && node scripts/run-tests.js"
+    "test:integration": "node scripts/run-scraper-tests.js",
+    "check": "node --check server.js && node --check board.js && node scripts/run-tests.js"
   },
   "engines": {
     "node": ">=20"
@@ -21,8 +25,9 @@
     "zero-config"
   ],
   "dependencies": {
-    "@mozilla/readability": "^0.5.0",
+    "@mozilla/readability": "^0.6.0",
     "cheerio": "^1.0.0",
+    "dingtalk-stream-sdk-nodejs": "^2.0.4",
     "linkedom": "^0.18.13",
     "turndown": "^7.2.0"
   }

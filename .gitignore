@@ -5,6 +5,8 @@ node_modules/
 DATA.md
 DATA.backup-*.md
 docs/entries/
+.linggan/
+dist/
 
 # 工具内部目录（ZCode 会话计划等，勿入库）
 .zcode/
@@ -24,7 +26,9 @@ docs/fetch-log.md
 *.backup.js
 *.refactor-backup.js
 
-# 含企业微信密钥的本地启动脚本（敏感，勿入库）
+# 含企业微信/钉钉密钥的本地启动脚本（敏感，勿入库）
 start-wecom.bat
+start-dingtalk.bat
 start-wecom.sh
+start-dingtalk.sh
 .env
