@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>灵感来袭 · 待办看板</title>
+<link rel="stylesheet" href="board.css">
+</head>
+<body>
+  <div class="ambient"></div>
+  <div class="ambient2"></div>
+
+  <!-- 顶栏 -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <span class="brand">
+        <span class="logo">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2 L14.8 8.6 L22 11 L14.8 13.4 L12 22 L9.2 13.4 L2 11 L9.2 8.6 Z" fill="color-mix(in srgb, var(--accent) 14%, transparent)"/>
+            <circle cx="12" cy="12" r="1.6" fill="var(--accent)" stroke="none"/>
+          </svg>
+        </span>
+        <span class="txt"><span class="t">灵感来袭</span><span class="s">TODO BOARD</span>
+        <!-- 品牌小标记（卡片角标复用） -->
+        <svg class="brand-mark" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 2 L14.8 8.6 L22 11 L14.8 13.4 L12 22 L9.2 13.4 L2 11 L9.2 8.6 Z"/>
+        </svg></span>
+        <span class="dot" id="svcDot" title="服务状态"></span>
+      </span>
+      <div class="search">
+        <input type="text" id="searchInput" placeholder="搜索标题、简介或关键词" aria-label="搜索">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+      </div>
+      <div class="view-switch" id="viewSwitch">
+        <div class="vs-slider" id="vsSlider"></div>
+        <button data-view="list" class="active">列表</button>
+        <button data-view="board">看板</button>
+      </div>
+      <div class="theme-wrap">
+        <button class="btn theme-btn" id="themeBtn" title="切换主题">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3 M12 19v3 M2 12h3 M19 12h3 M4.9 4.9l2.1 2.1 M17 17l2.1 2.1 M19.1 4.9L17 7 M7 17l-2.1 2.1"/></svg>
+        </button>
+        <div class="theme-panel" id="themePanel">
+          <div class="tp-t">主题</div>
+          <button class="tp-item" data-t="light"><span class="sw sw-light"></span>晨曦暖白</button>
+          <button class="tp-item" data-t="dark"><span class="sw sw-dark"></span>深邃暗色</button>
+          <button class="tp-item" data-t="aurora"><span class="sw sw-aurora"></span>极光幻彩</button>
+          <button class="tp-item" data-t="forest"><span class="sw sw-forest"></span>森林静谧</button>
+        </div>
+      </div>
+      <div class="load">
+        <button class="btn icon-btn" id="rollBtn" title="随机抽取一个研究（R）">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v3.5H14 M18 17.5l2.5-2.5"/></svg>
+        </button>
+        <button class="btn icon-btn" id="statsBtn" title="统计洞察">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10 M10 20V4 M16 20v-8 M22 20H2"/></svg>
+        </button>
+        <button class="btn primary" id="addBtn" title="粘贴链接，自动抓取并写入 README.md">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          新增
+        </button>
+        <button class="btn" id="reloadBtn" title="重新读取文件" hidden>刷新</button>
+        <span class="fname" id="fname">未加载</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- 统计条 -->
+  <section class="statsbar" id="statsbar" hidden>
+    <div class="stat total"><span class="lbl">Total</span><span class="num" id="nTotal">0</span><span class="sub" id="subTotal">全部条目</span></div>
+    <div class="stat pending"><span class="lbl">待研究</span><span class="num" id="nPending">0</span><span class="sub">Pending</span></div>
+    <div class="stat doing"><span class="lbl">进行中</span><span class="num" id="nDoing">0</span><span class="sub">Doing</span></div>
+    <div class="stat done"><span class="lbl">已完成</span><span class="num" id="nDone">0</span><span class="sub">Done</span></div>
+    <div class="bar-wrap">
+      <span class="bl">完成进度</span>
+      <div class="bar-track"><div class="bar" id="progressBar"></div></div>
+    </div>
+  </section>
+
+  <main class="main">
+    <!-- 沉浸分类横幅 -->
+    <section class="banner" id="banner" hidden>
+      <div class="banner-inner" id="bannerInner">
+        <div class="noise"></div>
+        <svg class="banner-svg" id="bannerSvg" width="220" height="220" viewBox="0 0 200 200"></svg>
+        <div class="bwrap">
+          <div>
+            <div class="bt" id="bannerTitle">待研究项目库</div>
+            <div class="bs" id="bannerSub"></div>
+            <div class="bb" id="bannerBadges"></div>
+          </div>
+          <div class="bnum" id="bannerNum">0<small>ITEMS</small></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 今日推荐（待研究里算法挑一个） -->
+    <div class="daily" id="daily" hidden>
+      <div class="d-cover" id="dCover"></div>
+      <div class="d-body">
+        <div class="d-tag">今日推荐 · 从待研究里挑一个开始</div>
+        <div class="d-title" id="dTitle"></div>
+        <div class="d-meta" id="dMeta"></div>
+      </div>
+      <div class="d-actions">
+        <button class="btn" id="dailySkip">换一个</button>
+        <button class="btn primary" id="dailyStart">开始研究</button>
+      </div>
+      <button class="d-close" id="dailyClose" title="今日不再显示" aria-label="关闭">×</button>
+    </div>
+
+    <!-- 筛选 + 列头排序 + 密度 -->
+    <div class="toolrow" id="toolrow" hidden>
+      <div class="cats" id="cats"></div>
+      <div class="sort-head" id="sortHead">
+        <button class="sh-btn" data-sf="id"><span class="lbl">编号</span><span class="arr"></span></button>
+        <button class="sh-btn" data-sf="name"><span class="lbl">名称</span><span class="arr"></span></button>
+        <button class="sh-btn" data-sf="diff"><span class="lbl">难度</span><span class="arr"></span></button>
+        <button class="sh-btn" data-sf="status"><span class="lbl">状态</span><span class="arr"></span></button>
+      </div>
+      <div class="density" id="density" title="列表密度">
+        <button data-d="cozy" class="active" title="舒适">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="13" x2="20" y2="13"/></svg>
+        </button>
+        <button data-d="compact" title="紧凑">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="11" x2="20" y2="11"/><line x1="4" y1="16" x2="20" y2="16"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="meta-line" id="meta" hidden></div>
+
+    <!-- 空态 -->
+    <div class="empty-state" id="emptyState">
+      <div class="art">
+        <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2 L14.8 8.6 L22 11 L14.8 13.4 L12 22 L9.2 13.4 L2 11 L9.2 8.6 Z"/>
+          <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+        </svg>
+        <svg class="art-deco" width="180" height="40" viewBox="0 0 180 40" fill="currentColor" aria-hidden="true">
+          <circle cx="20" cy="20" r="1"/><circle cx="60" cy="20" r="1"/><circle cx="90" cy="20" r="1.4"/><circle cx="120" cy="20" r="1"/><circle cx="160" cy="20" r="1"/>
+        </svg>
+      </div>
+      <div class="t" id="emptyTitle">加载 README.md 开始</div>
+      <div class="d" id="emptyDesc">看板读取本地的 README.md 文件。第一次使用时点「选择文件」，授权后看板会记住这个文件，之后每次打开都自动显示最新内容。文件仅在本机浏览器中解析，不上传任何服务器。</div>
+      <button class="btn primary" id="emptyPickBtn">选择文件</button>
+    </div>
+
+    <!-- 列表视图 -->
+    <section id="listView" class="list" hidden></section>
+
+    <!-- 看板视图 -->
+    <section id="boardView" class="board" hidden></section>
+
+    <!-- 研究档案详情视图 -->
+    <section id="entryView" class="entry-view" hidden>
+      <header class="entry-header">
+        <button class="btn" id="entryBack" type="button">← 返回看板</button>
+        <h2 id="entryTitle">研究档案</h2>
+        <span class="muted" id="entryId"></span>
+      </header>
+      <form id="entryForm" class="entry-form">
+        <fieldset class="ef-set">
+          <legend>📦 下载安装</legend>
+          <label class="ef-row"><span>下载状态</span><select name="downloadStatus"><option>未下载</option><option>已下载</option></select></label>
+          <label class="ef-row"><span>安装包</span><input name="installerName" type="text" placeholder="文件名/来源"></label>
+          <label class="ef-row"><span>安装状态</span><select name="installStatus"><option>未安装</option><option>已安装</option></select></label>
+          <label class="ef-row"><span>安装路径</span><input name="installPath" type="text" placeholder="如 C:\Program Files\xxx"></label>
+        </fieldset>
+        <fieldset class="ef-set">
+          <legend>⭐ 体验评价</legend>
+          <label class="ef-row"><span>评分</span><select name="rating"><option value="1">⭐</option><option value="2">⭐⭐</option><option value="3">⭐⭐⭐</option><option value="4">⭐⭐⭐⭐</option><option value="5">⭐⭐⭐⭐⭐</option></select></label>
+          <label class="ef-row"><span>是否达预期</span><select name="metExpectation"><option value="">-</option><option>是</option><option>否</option><option>部分</option></select></label>
+          <label class="ef-row"><span>使用感受</span><textarea name="experience" rows="4" placeholder="多行记录实际体验..."></textarea></label>
+        </fieldset>
+        <fieldset class="ef-set">
+          <legend>📸 界面截图</legend>
+          <div class="ss-upload">
+            <input type="file" id="ssInput" accept="image/png,image/jpeg">
+            <input type="text" id="ssCaption" placeholder="本张说明(选填)">
+            <button type="button" class="btn" id="ssUploadBtn">上传截图</button>
+          </div>
+          <div id="ssGrid" class="ss-grid"></div>
+        </fieldset>
+        <fieldset class="ef-set">
+          <legend>🔖 收藏判定</legend>
+          <label class="ef-row"><span>值得收藏备用</span><select name="keep"><option>否</option><option>是</option></select></label>
+          <label class="ef-row"><span>推荐指数</span><select name="recommendLevel"><option value="1">⭐</option><option value="2">⭐⭐</option><option value="3">⭐⭐⭐</option><option value="4">⭐⭐⭐⭐</option><option value="5">⭐⭐⭐⭐⭐</option></select></label>
+          <label class="ef-row"><span>备注</span><input name="keepNote" type="text" placeholder="为什么收/不收"></label>
+        </fieldset>
+        <fieldset class="ef-set">
+          <legend>📥 抓取原文（只读参考）</legend>
+          <div class="scrape-bar">
+            <button type="button" class="btn" id="scrapeBtn">📥 抓取正文</button>
+            <span class="scrape-hint" id="scrapeHint">从条目链接抓取正文内容（当前支持 GitHub）</span>
+          </div>
+          <div id="contentPreview" class="content-preview" hidden></div>
+        </fieldset>
+        <div class="ef-actions">
+          <button type="submit" class="btn primary">保存档案</button>
+          <button type="button" class="btn" id="entryCancel">不保存返回</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <footer>
+    <span>本地解析 · 数据不上传 · 浏览器自动备份</span>
+    <span id="footerFile">未加载</span>
+  </footer>
+
+  <!-- 快捷键面板 -->
+  <div class="modal-overlay" id="hotkeyModal">
+    <div class="modal hotkey-modal" style="max-width:560px">
+      <div class="m-title">⌨ 快捷键</div>
+      <div class="m-sub">无需鼠标，一气呵成。</div>
+      <div class="hotkey-grid">
+        <div class="hk"><kbd>J</kbd> <kbd>K</kbd><span>上下移动（列表）</span></div>
+        <div class="hk"><kbd>Enter</kbd><span>展开 / 收起当前行</span></div>
+        <div class="hk"><kbd>N</kbd><span>新增条目</span></div>
+        <div class="hk"><kbd>R</kbd><span>随机抽取研究</span></div>
+        <div class="hk"><kbd>E</kbd><span>沉浸研究当前行</span></div>
+        <div class="hk"><kbd>S</kbd><span>统计洞察</span></div>
+        <div class="hk"><kbd>/</kbd><span>聚焦搜索框</span></div>
+        <div class="hk"><kbd>双击</kbd> 分类 chip<span>折叠 / 展开该分类</span></div>
+        <div class="hk"><kbd>Esc</kbd><span>关闭任意模态</span></div>
+        <div class="hk"><kbd>?</kbd><span>打开 / 关闭此面板</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <!-- 粒子 -->
+  <div class="particle-field" id="particleField"></div>
+  <!-- 批量操作栏 -->
+  <div class="bulkbar" id="bulkbar">
+    <span class="bc" id="bulkCount">已选 0 项</span>
+    <button class="btn" id="bulkDoing">进行中</button>
+    <button class="btn" id="bulkDone">已完成</button>
+    <button class="btn" id="bulkPending">待研究</button>
+    <button class="btn danger" id="bulkDelete">删除</button>
+  </div>
+
+  <!-- 随机抽取模态 -->
+  <div class="modal-overlay" id="rollModal">
+    <div class="modal" style="max-width:460px">
+      <div class="m-title">今天研究这个</div>
+      <div class="m-sub">从待研究清单里随机抽一个，交给命运。</div>
+      <div class="roll-stage">
+        <div class="roll-name" id="rollName">准备就绪</div>
+        <div class="roll-hit" id="rollHit"></div>
+      </div>
+      <div class="roll-actions">
+        <button class="btn" id="rollAgain">再来一次</button>
+        <button class="btn primary" id="rollStudy" hidden>开始研究</button>
+        <button class="btn" id="rollOpen" hidden>打开原文</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 统计模态 -->
+  <div class="modal-overlay" id="statsModal">
+    <div class="modal">
+      <div class="m-title">统计洞察</div>
+      <div class="m-sub" id="statsSub"></div>
+      <div class="rings" id="rings"></div>
+    </div>
+  </div>
+
+  <!-- 沉浸研究模态 -->
+  <div class="study-overlay" id="studyOverlay">
+    <div class="study">
+      <div class="s-cover">
+        <button class="s-back" id="studyBack" title="退出（Esc）">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <img id="studyImg" alt="封面" hidden>
+        <div class="ph" id="studyPh"></div>
+      </div>
+      <div class="s-main">
+        <div>
+          <div class="s-title" id="studyTitle"></div>
+          <div class="s-meta" style="margin-top:8px" id="studyMeta"></div>
+        </div>
+        <div class="s-actions">
+          <button class="btn primary" id="studyOpen" title="新窗口打开原文">打开原文</button>
+          <button class="btn" id="studyStatus">标记为进行中</button>
+        </div>
+        <div class="timer-box">
+          <div class="tt">研究计时</div>
+          <div class="timer-row">
+            <div class="timer-ring" id="timerRing" style="background: conic-gradient(var(--accent) 0deg, var(--border) 0deg)">
+              <div class="tr-hole"><span class="tr-t" id="timerPct">0%</span></div>
+            </div>
+            <div class="timer-ctl">
+              <div class="t-now" id="timerNow">25:00</div>
+              <div class="t-btns">
+                <button class="btn" id="timerToggle">开始</button>
+                <button class="btn" id="timerReset">重置</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="s-note">
+          <label for="studyNote">研究笔记（自动写回 README 的研究要点）</label>
+          <textarea id="studyNote" placeholder="记录研究发现、踩坑、心得…"></textarea>
+        </div>
+        <div class="s-actions" style="margin-top:2px">
+          <button class="btn primary" id="studySave">保存笔记</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新增模态 -->
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <h3>新增待办条目</h3>
+      <p class="sub">粘贴链接，自动抓取标题、作者、简介、封面并分类。抓取结果可微调，确认后直接写入 README.md。</p>
+
+      <label for="fetchUrl">链接</label>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="fetchUrl" placeholder="B站 / 微信公众号 / GitHub 链接" style="flex:1">
+        <button class="btn primary" id="fetchBtn" style="flex-shrink:0">识别</button>
+      </div>
+      <div class="fetch-load" id="fetchLoad">正在识别链接…</div>
+      <div class="fetch-err" id="fetchErr"></div>
+      <div class="fetch-warn" id="fetchWarn"></div>
+
+      <div class="fetch-prev" id="fetchPrev">
+        <div class="fp-cover" id="fpCover">
+          <img id="fpImg" alt="封面" hidden>
+          <div class="fp-ph" id="fpPh"></div>
+        </div>
+        <div class="fp-body">
+          <div class="fp-t" id="fpTitle"></div>
+          <div class="fp-a" id="fpAuthor"></div>
+          <div class="fp-d" id="fpDesc"></div>
+        </div>
+      </div>
+
+      <div id="editForm" hidden>
+        <div class="row2">
+          <div>
+            <label for="linkName">标题</label>
+            <input type="text" id="linkName" placeholder="自动识别的标题">
+            <div class="hint-err" id="nameErr">请填写标题</div>
+          </div>
+          <div>
+            <label for="linkCat">分类</label>
+            <select id="linkCat"></select>
+          </div>
+        </div>
+        <label for="linkDesc">简介（可选）</label>
+        <textarea id="linkDesc" placeholder="自动识别的简介"></textarea>
+        <label>难度</label>
+        <div class="stars" id="starPicker">
+          <button data-d="1">⭐</button>
+          <button data-d="2">⭐⭐</button>
+          <button data-d="3">⭐⭐⭐</button>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn" id="cancelBtn">取消</button>
+        <button class="btn primary" id="genBtn" hidden>写入 README</button>
+      </div>
+      <div class="ok-msg" id="okMsg"></div>
+    </div>
+  </div>
+
+<script src="board.js"></script>
+</body>
+</html>

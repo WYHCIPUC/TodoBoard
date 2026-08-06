@@ -1,0 +1,40 @@
+{
+  "_说明": "重构回归基线。记录当前 server.js 各函数的真实输出。重构后必须逐条等价。",
+  "_记录时间": "2026-08-05",
+  "_来源": "server.js 原始实现直接运行得出",
+  "classify": {
+    "_note": "基线是【当前算法真实输出】,非主观期望。重构不得改变这些。",
+    "腾讯 Miora 设计 Agent 网站动效神器": "前端 & 设计",
+    "drawio-skill AI 自动生成架构图": "AI 工具",
+    "ESP32 迷你四轴无人机 45元手搓 硬件": "硬件 & 嵌入式",
+    "PaperTodo 极简 Windows 桌面便签": "桌面 & 系统",
+    "roboflow supervision computer vision github": "开源项目 & 开发",
+    "EyeDex 眼图 开放目录搜索引擎 osint": "搜索 & OSINT",
+    "": "其他"
+  },
+  "guessSource": {
+    "https://www.bilibili.com/video/BV1xx": "B站视频",
+    "https://mp.weixin.qq.com/s/xxx": "微信公众号原文",
+    "https://github.com/user/repo": "GitHub 仓库",
+    "https://example.com/other": "来源"
+  },
+  "parseUrl": {
+    "https://www.bilibili.com/video/BV1bcNZ6xEK3/": {"kind":"bilibili","bvid":"BV1bcNZ6xEK3"},
+    "https://github.com/roboflow/supervision": {"kind":"github","repo":"roboflow/supervision"},
+    "https://github.com/roboflow/supervision.git": {"kind":"github","repo":"roboflow/supervision"},
+    "https://example.com/page": {"kind":"web"}
+  },
+  "buildSnippet_shape": {
+    "_note": "新增条目片段结构,字段顺序与符号必须一致(看板解析器依赖)",
+    "example_id": "1.8",
+    "lines_order": [
+      "### ⏳ {id} {name}",
+      "- **简介**:{desc}  (仅当 desc 非空)",
+      "- **作者**:{author}  (仅当 author 非空,注意 buildSnippet 中作者字段为可选项)",
+      "- **作者 / 来源**:[{site|guessSource}]({url})",
+      "- **封面**:{image}  (仅当 image 非空)",
+      "- **难度**:⭐×{difficulty}",
+      "- **研究要点**:(待补充)"
+    ]
+  }
+}

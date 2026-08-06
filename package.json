@@ -1,0 +1,29 @@
+{
+  "name": "linggankanban",
+  "version": "1.0.0",
+  "private": true,
+  "description": "灵感来袭·待办看板：本地灵感/项目收集工具（粘贴链接自动解析、分类、研究笔记）",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node scripts/run-tests.js",
+    "check": "node --check server.js && node scripts/run-tests.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "keywords": [
+    "kanban",
+    "bookmark",
+    "markdown",
+    "local-first",
+    "zero-config"
+  ],
+  "dependencies": {
+    "@mozilla/readability": "^0.5.0",
+    "cheerio": "^1.0.0",
+    "linkedom": "^0.18.13",
+    "turndown": "^7.2.0"
+  }
+}
