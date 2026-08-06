@@ -11,8 +11,12 @@ if errorlevel 1 (
 )
 
 echo Starting board service...
-echo Data: %~dp0README.md
-echo Close this window to stop.
+echo Data: %~dp0DATA.md
 echo.
+echo ----- 企业微信转发入库（可选）-----
+echo 如需启用，在下方 set 行填入你的企业微信参数（见 docs/WECOM-GUIDE.md）
+echo ----------------------------------
+echo.
+
 node server.js
 pause

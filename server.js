@@ -36,6 +36,7 @@ const fetcher = require("./lib/fetcher");
 const store = require("./lib/store");
 const entries = require("./lib/entries");
 const scraper = require("./lib/scraper");
+const wecom = require("./lib/wecom");
 const { guessSource } = require("./lib/classifier");
 
 const PORT = Number(process.env.PORT) || 3865;
@@ -141,8 +142,8 @@ const server = http.createServer((req, res) => {
   const u = new URL(req.url, "http://localhost:" + PORT);
   const p = u.pathname;
 
-  /* 写接口 CSRF 防护：浏览器跨站请求必带 Origin，非本地来源一律拒绝（curl 等无 Origin 工具放行） */
-  if (req.method === "POST") {
+  /* 写接口 CSRF 防护：浏览器跨站请求必带 Origin，非本地来源一律拒绝（curl / 企业微信服务器等无 Origin 客户端放行） */
+  if (req.method === "POST" && !p.startsWith("/api/wecom/")) {
     const origin = req.headers.origin;
     if (origin) {
       let oh;
@@ -413,6 +414,80 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  /* ===== 企业微信消息回调：转发链接即入库 ===== */
+  if (p === "/api/wecom/callback") {
+    // 未配置企业微信时给出提示（不影响看板主功能）
+    if (!wecom.isEnabled()) {
+      sendJson(res, 503, { ok: false, error: "未配置企业微信（需设置 WECOM_CORP_ID/SECRET/TOKEN/ENCODING_AES 等环境变量）" });
+      return;
+    }
+    const q = u.searchParams;
+    // GET：企业微信 URL 验证（echostr 回显）
+    if (req.method === "GET") {
+      const sig = q.get("msg_signature") || "";
+      const ts = q.get("timestamp") || "";
+      const nonce = q.get("nonce") || "";
+      const echostr = q.get("echostr") || "";
+      if (wecom.verifySignature(sig, ts, nonce, echostr)) {
+        const plain = wecom.decrypt(echostr);
+        sendText(res, 200, plain);
+      } else {
+        sendText(res, 403, "签名校验失败");
+      }
+      return;
+    }
+    // POST：接收消息（用户转发的内容）
+    if (req.method === "POST") {
+      let body = "";
+      req.on("data", c => { body += c; });
+      req.on("end", () => {
+        (async () => {
+          const sig = q.get("msg_signature") || "";
+          const ts = q.get("timestamp") || "";
+          const nonce = q.get("nonce") || "";
+          const encrypt = wecom.xmlField(body, "Encrypt");
+          // 签名校验 + 解密
+          if (!encrypt || !wecom.verifySignature(sig, ts, nonce, encrypt)) {
+            sendJson(res, 403, { ok: false, error: "消息签名校验失败" });
+            return;
+          }
+          const xml = wecom.decrypt(encrypt);
+          const fromUser = wecom.xmlField(xml, "FromUserName");
+          const url = wecom.extractUrl(xml);
+          // 无链接：提示用法
+          if (!url) {
+            try { await wecom.sendText(fromUser, "请直接转发或粘贴一个 http(s) 链接给我，我会自动抓取并记录到看板。"); } catch (_) {}
+            sendJson(res, 200, { ok: true, skipped: true });
+            return;
+          }
+          // 抓取 + 入库（复用现有流程）
+          let meta = {};
+          try { meta = await fetcher.fetchMeta(url, "企业微信"); }
+          catch (e) { meta = { url, error: e.message }; }
+          const name = meta.title || url;
+          const cat = meta.category || "其他";
+          const site = meta.site || guessSource(url);
+          try {
+            const text = store.readAll();
+            const id = store.nextIdIn(text, cat);
+            const snippet = store.buildSnippet({ id, name, url, author: meta.author || "", desc: meta.desc || "", difficulty: 1, image: meta.image || "", site });
+            store.writeWithBackup(store.insertSnippet(text, cat, snippet));
+            // 回复入库结果
+            const reply = meta.warning
+              ? `✅ 已记录（兜底解析）\n${id} ${name}\n分类：${cat}\n⚠️ ${meta.warning}`
+              : `✅ 已记录\n${id} ${name}\n分类：${cat}${meta.author ? "\n作者：" + meta.author : ""}`;
+            try { await wecom.sendText(fromUser, reply); } catch (_) {}
+            sendJson(res, 200, { ok: true, id, category: cat });
+          } catch (e) {
+            try { await wecom.sendText(fromUser, "❌ 记录失败：" + e.message); } catch (_) {}
+            sendJson(res, 500, { ok: false, error: String(e) });
+          }
+        })();
+      });
+      return;
+    }
+  }
+
   /* 静态：board.html / board.css / board.js */
   const STATIC = {
     "/": { file: "board.html", type: "text/html; charset=utf-8" },
@@ -457,6 +532,7 @@ server.listen(PORT, HOST, () => {
   console.log("  灵感来袭 · 待办看板");
   console.log("  http://localhost:" + PORT);
   console.log("  数据文件: " + README);
+  console.log("  企业微信转发入库: " + (wecom.isEnabled() ? "已启用 (/api/wecom/callback)" : "未配置（设置 WECOM_* 环境变量启用）"));
   console.log("  按 Ctrl+C 停止服务");
   console.log("");
   try {

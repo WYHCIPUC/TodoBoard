@@ -23,3 +23,8 @@ docs/server-error.log
 docs/fetch-log.md
 *.backup.js
 *.refactor-backup.js
+
+# 含企业微信密钥的本地启动脚本（敏感，勿入库）
+start-wecom.bat
+start-wecom.sh
+.env
