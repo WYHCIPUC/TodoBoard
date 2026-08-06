@@ -2,9 +2,10 @@
 
 > 本地优先的灵感 / 项目收集工具：粘贴链接自动解析标题、作者、简介、封面并分类，支持研究笔记与正文抓取。数据就是一份 Markdown 文件。
 
-![CI](https://img.shields.io/github/actions/workflow/status/YOUR_NAME/linggankanban/ci.yml)
-![License](https://img.shields.io/github/license/YOUR_NAME/linggankanban)
+![CI](https://img.shields.io/github/actions/workflow/status/WYHCIPUC/TodoBoard/ci.yml?branch=main)
+![License](https://img.shields.io/github/license/WYHCIPUC/TodoBoard)
 ![Node](https://img.shields.io/badge/node-%E2%89%A520-green)
+![GitHub Repo stars](https://img.shields.io/github/stars/WYHCIPUC/TodoBoard?style=social)
 
 （替换上方徽章链接为你的仓库地址，并在下方补充界面截图）
 
