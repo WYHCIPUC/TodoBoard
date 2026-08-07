@@ -1,51 +1,69 @@
-# 🚀 发布检查清单（GitHub 发布前逐项确认）
+# 2.0.0-beta.1 发布检查清单
 
-> 代码层面的发布准备已完成（数据分离 / LICENSE / 安全 / CI / 文档）。以下是**仓库操作**层面的清单，按顺序执行。
+## 1. 自动化门禁
 
-## 1. 代码提交前确认
+- [ ] `npm ci` 使用锁文件完成安装。
+- [ ] `npm run doctor` 通过或仅提示当前看板已运行。
+- [ ] `npm run check` 全部通过。
+- [ ] `npm run test:integration` 全部通过。
+- [ ] `git diff --check` 无空白错误。
+- [ ] CI 在 Node.js 20 和 22 上通过。
 
-- [ ] `git status` 无 `DATA.md`、`docs/entries/`、`docs/fetch-log.md`（已在 .gitignore，若出现说明配置异常）
-- [ ] `npm test` 全绿
-- [ ] `README.md` 徽章链接已替换 `YOUR_NAME/linggankanban` 为真实仓库地址
-- [ ] `README.md` 中已补充界面截图
-- [ ] 删除本地备份文件：`server.js.refactor-backup.js`、`lib/fetcher.js.backup.js`、`README.backup-*.md`（均不入库，本地可留）
+## 2. 数据与安全
 
-## 2. 创建 GitHub 仓库
+- [ ] 使用 v1 样本演练迁移，确认 `.linggan/migration-backups/` 生成且源数据未丢失。
+- [ ] 演练完整导出与恢复，核对条目、笔记、正文和截图数量。
+- [ ] 验证重复 URL 不会创建第二条记录。
+- [ ] 验证重复冲突面板可以打开已有条目、合并标签与收藏原因，并在明确选择时保留副本。
+- [ ] 验证删除进入回收站且可以恢复。
+- [ ] 验证未认证 API、超大 JSON/文件和私网抓取请求被拒绝。
+- [ ] 发布包中不存在 `DATA.md`、`docs/entries/`、`docs/fetch-log.md`、`.linggan/`、日志、密钥或代理凭据。
 
-- [ ] 新建仓库 `linggankanban`（Public）
-- [ ] **不要**勾选 "Add a README"（本地已有）
-- [ ] 添加远程并推送：
+## 3. Windows 验收
 
-```bash
-git remote add origin https://github.com/<你的用户名>/linggankanban.git
-git push -u origin main
+- [ ] 在干净 Windows 10 环境安装 Node.js 20 LTS，解压发布包并双击 `start.bat`。
+- [ ] 在干净 Windows 11 环境重复上述流程。
+- [ ] 验证首次依赖安装、自动打开浏览器、停止后重启和已运行时再次双击。
+- [ ] 用其他程序占用 3865，确认启动器给出清晰错误；换端口后可以启动。
+- [ ] 验证中文路径、带空格路径和普通用户写权限场景。
+- [ ] 按 `docs/WINDOWS-GUIDE.md` 完成升级和卸载演练。
+
+## 4. 浏览器主流程
+
+- [ ] 空数据首次收藏。
+- [ ] 预览并保存链接，填写标签与收藏原因。
+- [ ] 切换五种研究模板并保存研究结论。
+- [ ] 全文搜索命中元数据、笔记和正文。
+- [ ] 删除、回收站查看与恢复。
+- [ ] 完整备份导出、导入预检摘要、恢复前确认和诊断信息展示。
+- [ ] 导入包含文件夹、有效、重复和非法链接的浏览器书签 HTML，确认目录转换为标签、预检数量正确且只写入一次。
+- [ ] 清除浏览器中的 `linggan_onboarding_v2_seen` 后刷新，确认首次引导可展示、关闭并通过帮助入口重开。
+- [ ] 在数据管理中确认健康状态、读写权限、最近备份和异常问题摘要均正确。
+- [ ] 在 390px 视口确认无横向溢出、首条内容无需经过超长头图区，并可横向浏览统计与分类。
+- [ ] 搜索后使用清除按钮和 Esc 恢复全部结果；用 Tab + Enter 展开条目，折叠时详情按钮不可获得焦点。
+- [ ] 仅 1/14 条完成时完成进度应为 7%，点击每日推荐“开始研究”后状态应变为进行中。
+- [ ] 在常见桌面宽度及 390px 窄屏检查布局。
+
+## 5. 构建发布包
+
+```powershell
+npm run package:windows
+npm run package:portable
 ```
 
-## 3. 仓库设置（Settings）
+- [ ] 解压 `dist/linggankanban-2.0.0-beta.1-windows.zip` 并从该目录完成一次验收。
+- [ ] 解压 `dist/linggankanban-2.0.0-beta.1-windows-portable-x64.zip`，在未安装 Node.js 的环境双击 `start-portable.bat`。
+- [ ] 便携包内置版本为 Node.js 22.23.2，包含 `NODE-LICENSE.txt` 与 `RUNTIME-NOTICE.txt`。
+- [ ] 计算并发布 SHA-256：`Get-FileHash dist\linggankanban-2.0.0-beta.1-windows.zip -Algorithm SHA256`。
+- [ ] 同时计算并发布便携包 SHA-256。
+- [ ] Git 标签与 `package.json` 一致：`v2.0.0-beta.1`。
+- [ ] GitHub Release 标记为 Pre-release，并使用 `CHANGELOG.md` 对应章节作为发行说明。
 
-- [ ] General → Description：`本地优先的灵感/项目收集看板：粘贴链接自动解析并分类，数据就是一份 Markdown`
-- [ ] General → Topics：`kanban` `markdown` `local-first` `bookmark-manager` `nodejs`
-- [ ] General → Default branch → 启用 `Require pull request reviews`（可选，单人可跳过）
-- [ ] Pages → Source 选 `Deploy from a branch` → `main` / root → Save（在线试用入口：`https://<用户名>.github.io/linggankanban/board.html`，纯前端可用「选择文件」加载本地数据）
-- [ ] 确认 Actions → CI workflow 首次运行通过（Node 20/22 矩阵）
+## 6. 推广前准备
 
-## 4. 发布 Release（v1.0.0）
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-在 GitHub → Releases → Draft：标题 `v1.0.0`，内容可从 `CHANGELOG.md` 的 1.0.0 章节复制。
-
-## 5. 发布后检查
-
-- [ ] 徽章正常显示（CI / License / Node）
-- [ ] 在线 demo 可打开
-- [ ] 截图上传到 README 中引用的位置（仓库内 `docs/screenshot.png` 或图床）
-
-## 可选后续
-
-- [ ] 推送到 Hacker News / V2EX / 小众软件等社区
-- [ ] 上 npm（需移除 `private: true`，加 `bin`/`files` 字段，另发 `@yourname/linggankanban`）
-- [ ] 英文版 README（`README.en.md`）
+- [ ] README 使用真实仓库地址、界面截图和明确的 Beta 标识。
+- [ ] 配置 Bug、功能建议和数据恢复三类 Issue 模板。
+- [ ] 按 `docs/BETA-USER-TEST.md` 完成目标用户首次使用测试。
+- [ ] 发布已知限制：Windows 优先、本地单机、无云同步/多人协作、外部网页解析受网络影响。
+- [ ] 准备 5 分钟首次使用测试脚本，至少邀请 5 名目标用户试用。
+- [ ] 记录激活率、首次收藏耗时、解析成功率和数据恢复问题；不默认开启遥测。

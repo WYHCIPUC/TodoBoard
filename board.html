@@ -20,42 +20,69 @@
             <circle cx="12" cy="12" r="1.6" fill="var(--accent)" stroke="none"/>
           </svg>
         </span>
-        <span class="txt"><span class="t">灵感来袭</span><span class="s">TODO BOARD</span>
+        <span class="txt"><span class="t">灵感工作台</span><span class="s">IDEA OS</span>
         <!-- 品牌小标记（卡片角标复用） -->
         <svg class="brand-mark" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <path d="M12 2 L14.8 8.6 L22 11 L14.8 13.4 L12 22 L9.2 13.4 L2 11 L9.2 8.6 Z"/>
         </svg></span>
         <span class="dot" id="svcDot" title="服务状态"></span>
       </span>
+      <nav class="product-nav" id="productNav" aria-label="核心工作台">
+        <button type="button" class="product-nav-item active" id="inspirationNav" data-product-view="inspiration" aria-label="打开灵感来袭工作台" aria-pressed="true">
+          <span class="product-nav-step" aria-hidden="true">01</span><span><strong>灵感来袭</strong><small>收集与研究</small></span>
+        </button>
+        <button type="button" class="product-nav-item" id="brainstormBtn" data-product-view="brainstorm" aria-label="打开头脑风暴工作台" aria-pressed="false">
+          <span class="product-nav-step" aria-hidden="true">02</span><span><strong>头脑风暴</strong><small>关联与决策</small></span>
+        </button>
+      </nav>
       <div class="search">
         <input type="text" id="searchInput" placeholder="搜索标题、简介或关键词" aria-label="搜索">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+        <button type="button" class="search-clear" id="searchClearBtn" aria-label="清除搜索" title="清除搜索" hidden>×</button>
       </div>
       <div class="view-switch" id="viewSwitch">
         <div class="vs-slider" id="vsSlider"></div>
-        <button data-view="list" class="active">列表</button>
-        <button data-view="board">看板</button>
+        <button type="button" data-view="list" class="active" aria-pressed="true">列表</button>
+        <button type="button" data-view="board" aria-pressed="false">看板</button>
       </div>
       <div class="theme-wrap">
-        <button class="btn theme-btn" id="themeBtn" title="切换主题">
+        <button type="button" class="btn theme-btn" id="themeBtn" title="切换主题" aria-label="切换主题" aria-haspopup="menu" aria-expanded="false">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3 M12 19v3 M2 12h3 M19 12h3 M4.9 4.9l2.1 2.1 M17 17l2.1 2.1 M19.1 4.9L17 7 M7 17l-2.1 2.1"/></svg>
         </button>
         <div class="theme-panel" id="themePanel">
           <div class="tp-t">主题</div>
-          <button class="tp-item" data-t="light"><span class="sw sw-light"></span>晨曦暖白</button>
-          <button class="tp-item" data-t="dark"><span class="sw sw-dark"></span>深邃暗色</button>
-          <button class="tp-item" data-t="aurora"><span class="sw sw-aurora"></span>极光幻彩</button>
-          <button class="tp-item" data-t="forest"><span class="sw sw-forest"></span>森林静谧</button>
+          <button type="button" class="tp-item" data-t="light"><span class="sw sw-light"></span>晨曦暖白</button>
+          <button type="button" class="tp-item" data-t="dark"><span class="sw sw-dark"></span>深邃暗色</button>
+          <button type="button" class="tp-item" data-t="aurora"><span class="sw sw-aurora"></span>极光幻彩</button>
+          <button type="button" class="tp-item" data-t="forest"><span class="sw sw-forest"></span>森林静谧</button>
         </div>
       </div>
       <div class="load">
-        <button class="btn icon-btn" id="rollBtn" title="随机抽取一个研究（R）">
+        <button type="button" class="btn icon-btn" id="rollBtn" title="随机抽取一个研究（R）" aria-label="随机抽取一个研究">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v3.5H14 M18 17.5l2.5-2.5"/></svg>
         </button>
-        <button class="btn icon-btn" id="statsBtn" title="统计洞察">
+        <button type="button" class="btn icon-btn" id="statsBtn" title="统计洞察" aria-label="统计洞察">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10 M10 20V4 M16 20v-8 M22 20H2"/></svg>
         </button>
-        <button class="btn primary" id="addBtn" title="粘贴链接，自动抓取并写入 README.md">
+        <button type="button" class="btn icon-btn" id="trashBtn" title="回收站" aria-label="回收站">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16 M9 3h6l1 4H8l1-4z M6 7l1 14h10l1-14 M10 11v6 M14 11v6"/></svg>
+        </button>
+        <button type="button" class="btn icon-btn" id="dataBtn" title="数据管理" aria-label="数据管理">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v7c0 1.7 3.1 3 7 3s7-1.3 7-3V5 M5 12v7c0 1.7 3.1 3 7 3s7-1.3 7-3v-7"/></svg>
+        </button>
+        <button type="button" class="btn icon-btn" id="helpBtn" title="使用帮助" aria-label="使用帮助">?</button>
+        <div class="more-wrap">
+          <button type="button" class="btn icon-btn more-btn" id="moreBtn" title="更多操作" aria-label="更多操作" aria-haspopup="menu" aria-expanded="false">•••</button>
+          <div class="more-panel" id="morePanel" role="menu">
+            <div class="more-panel-title">工作台工具</div>
+            <button type="button" role="menuitem" data-target="rollBtn">随机抽取</button>
+            <button type="button" role="menuitem" data-target="statsBtn">统计洞察</button>
+            <button type="button" role="menuitem" data-target="trashBtn">回收站</button>
+            <button type="button" role="menuitem" data-target="dataBtn">数据管理</button>
+            <button type="button" role="menuitem" data-target="helpBtn">使用帮助</button>
+          </div>
+        </div>
+        <button type="button" class="btn primary" id="addBtn" title="粘贴链接，自动抓取并写入 DATA.md">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           新增
         </button>
@@ -73,11 +100,77 @@
     <div class="stat done"><span class="lbl">已完成</span><span class="num" id="nDone">0</span><span class="sub">Done</span></div>
     <div class="bar-wrap">
       <span class="bl">完成进度</span>
-      <div class="bar-track"><div class="bar" id="progressBar"></div></div>
+      <div class="bar-track" id="progressTrack" role="progressbar" aria-label="完成进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="bar" id="progressBar"></div></div>
     </div>
   </section>
 
   <main class="main">
+    <section id="brainstormView" class="brainstorm-workspace" hidden aria-labelledby="brainstormTitle">
+      <header class="brainstorm-hero">
+        <div class="brainstorm-hero-copy">
+          <div class="brainstorm-kicker">02 · 关联与决策</div>
+          <h1 id="brainstormTitle">头脑风暴</h1>
+          <p>从真实需求出发，提取不同项目的长处，形成有依据、可验证的新方案。</p>
+        </div>
+        <button type="button" class="btn brainstorm-refresh" id="brainstormRefreshBtn">更新分析</button>
+      </header>
+      <form class="brainstorm-goal-builder" id="brainstormGoalForm">
+        <div class="goal-builder-copy">
+          <span class="goal-step">01 · 明确需求</span>
+          <label for="brainstormGoal">你想解决什么问题？</label>
+          <p>建议写清使用场景、个人偏好和期望结果。</p>
+        </div>
+        <div class="goal-builder-input">
+          <textarea id="brainstormGoal" maxlength="400" rows="3">制作一个属于自己的、符合自己偏好的网站设计 Skill</textarea>
+          <div class="goal-builder-actions">
+            <div class="goal-examples" aria-label="需求示例">
+              <button type="button" data-brainstorm-goal="制作一个属于自己的、符合自己偏好的网站设计 Skill">个性化设计 Skill</button>
+              <button type="button" data-brainstorm-goal="做一个本地优先、低干扰、可以自动整理研究线索的桌面工具">本地研究工具</button>
+              <button type="button" data-brainstorm-goal="建立一套从搜索资料到验证结论的自动化研究流程">自动研究流程</button>
+            </div>
+            <button type="submit" class="btn primary" id="brainstormGoalBtn">融合现有项目</button>
+          </div>
+        </div>
+      </form>
+      <div class="brainstorm-viewbar">
+        <div class="brainstorm-modes" role="tablist" aria-label="分析视角">
+          <button type="button" class="active" data-brainstorm-mode="fusion" role="tab" aria-selected="true">融合方案</button>
+          <button type="button" data-brainstorm-mode="panorama" role="tab" aria-selected="false">关系全景</button>
+          <button type="button" data-brainstorm-mode="opportunities" role="tab" aria-selected="false">机会</button>
+          <button type="button" data-brainstorm-mode="challenges" role="tab" aria-selected="false">盲区</button>
+          <button type="button" data-brainstorm-mode="roadmap" role="tab" aria-selected="false">路线</button>
+        </div>
+        <div class="brainstorm-summary" id="brainstormSummary" aria-live="polite"></div>
+      </div>
+      <details class="brainstorm-context">
+        <summary>查看本轮分析依据</summary>
+        <div class="brainstorm-insights" id="brainstormInsights"></div>
+      </details>
+      <section class="brainstorm-fusion-section" id="brainstormFusionPanel" aria-labelledby="brainstormFusionTitle">
+        <div class="brainstorm-section-head"><strong id="brainstormFusionTitle">需求驱动融合方案</strong><span id="brainstormFusionMeta">点击来源项目可返回研究档案</span></div>
+        <div class="brainstorm-fusion" id="brainstormFusion"><div class="brainstorm-loading">正在围绕实际需求抽取项目长处…</div></div>
+      </section>
+      <section class="brainstorm-dimensions-section" id="brainstormDimensionsPanel" aria-labelledby="brainstormDimensionsTitle" hidden>
+        <div class="brainstorm-section-head"><strong id="brainstormDimensionsTitle">多维分析雷达</strong><span>不是只看“相似”，而是同时寻找共振、互补、迁移与进阶</span></div>
+        <div class="brainstorm-dimensions" id="brainstormDimensions"><div class="brainstorm-loading">正在展开分析维度…</div></div>
+      </section>
+      <div class="brainstorm-layout" id="brainstormNetworkPanel" hidden>
+        <section class="brainstorm-graph-panel" aria-labelledby="brainstormGraphTitle">
+          <div class="brainstorm-section-head"><strong id="brainstormGraphTitle">全景知识网络</strong><span>节点越大，连接越多；边代表不同碰撞类型</span></div>
+          <div class="brainstorm-graph" id="brainstormGraph"><div class="brainstorm-loading">正在分析关联…</div></div>
+        </section>
+        <section class="brainstorm-matrix-panel" aria-labelledby="brainstormMatrixTitle">
+          <div class="brainstorm-section-head"><strong id="brainstormMatrixTitle">跨域碰撞矩阵</strong><span>观察哪些领域正在发生方法迁移</span></div>
+          <div class="brainstorm-matrix" id="brainstormMatrix"><div class="brainstorm-loading">正在计算跨域碰撞…</div></div>
+        </section>
+      </div>
+      <section class="brainstorm-suggestions-panel" id="brainstormSuggestionsPanel" aria-labelledby="brainstormSuggestionsTitle" hidden>
+        <div class="brainstorm-section-head"><strong id="brainstormSuggestionsTitle">机会、挑战与行动建议</strong><span>多种思路并列呈现，每条均可追溯依据</span></div>
+        <div class="brainstorm-suggestions" id="brainstormSuggestions"><div class="brainstorm-loading">正在生成多维建议…</div></div>
+      </section>
+      <div class="brainstorm-note">分析完全在本机完成，不会上传 DATA.md。补充标签、“为什么收藏”和研究结论，可持续扩大碰撞维度并提高置信度。</div>
+    </section>
+
     <!-- 沉浸分类横幅 -->
     <section class="banner" id="banner" hidden>
       <div class="banner-inner" id="bannerInner">
@@ -85,11 +178,17 @@
         <svg class="banner-svg" id="bannerSvg" width="220" height="220" viewBox="0 0 200 200"></svg>
         <div class="bwrap">
           <div>
-            <div class="bt" id="bannerTitle">待研究项目库</div>
+            <div class="workspace-eyebrow">01 · 收集与研究</div>
+            <h1 class="bt" id="bannerTitle">灵感项目库</h1>
             <div class="bs" id="bannerSub"></div>
             <div class="bb" id="bannerBadges"></div>
           </div>
-          <div class="bnum" id="bannerNum">0<small>ITEMS</small></div>
+          <div class="banner-side">
+            <button type="button" class="brainstorm-bridge" id="brainstormBridgeBtn">
+              <span><strong>进入头脑风暴</strong><small id="brainstormBridgeLabel">基于当前项目生成方案</small></span><b aria-hidden="true">→</b>
+            </button>
+            <div class="bnum" id="bannerNum">0<small>ITEMS</small></div>
+          </div>
         </div>
       </div>
     </section>
@@ -98,7 +197,7 @@
     <div class="daily" id="daily" hidden>
       <div class="d-cover" id="dCover"></div>
       <div class="d-body">
-        <div class="d-tag">今日推荐 · 从待研究里挑一个开始</div>
+        <div class="d-tag">下一步建议 · 从一条灵感开始研究</div>
         <div class="d-title" id="dTitle"></div>
         <div class="d-meta" id="dMeta"></div>
       </div>
@@ -140,9 +239,10 @@
           <circle cx="20" cy="20" r="1"/><circle cx="60" cy="20" r="1"/><circle cx="90" cy="20" r="1.4"/><circle cx="120" cy="20" r="1"/><circle cx="160" cy="20" r="1"/>
         </svg>
       </div>
-      <div class="t" id="emptyTitle">加载 README.md 开始</div>
-      <div class="d" id="emptyDesc">看板读取本地的 README.md 文件。第一次使用时点「选择文件」，授权后看板会记住这个文件，之后每次打开都自动显示最新内容。文件仅在本机浏览器中解析，不上传任何服务器。</div>
+      <div class="t" id="emptyTitle">加载 DATA.md 开始</div>
+      <div class="d" id="emptyDesc">启动本地服务即可使用完整能力；也可以选择一个 Markdown 文件进入只读浏览模式。</div>
       <button class="btn primary" id="emptyPickBtn">选择文件</button>
+      <input type="file" id="dataFileInput" accept=".md,text/markdown,text/plain" hidden>
     </div>
 
     <!-- 列表视图 -->
@@ -159,14 +259,22 @@
         <span class="muted" id="entryId"></span>
       </header>
       <form id="entryForm" class="entry-form">
-        <fieldset class="ef-set">
+        <fieldset class="ef-set ef-primary">
+          <legend>🧭 研究模板与结论</legend>
+          <label class="ef-row"><span>研究模板</span><select name="template" id="entryTemplate"><option value="general">通用研究</option><option value="article">文章阅读</option><option value="video">视频学习</option><option value="project">项目调研</option><option value="software">软件评测</option></select></label>
+          <label class="ef-row"><span id="whySavedLabel">为什么收藏</span><textarea name="whySaved" rows="2" placeholder="记录收藏动机，避免稍后忘记"></textarea></label>
+          <label class="ef-row"><span id="keyFindingsLabel">关键发现</span><textarea name="keyFindings" rows="3" placeholder="最重要的信息、观点或技术发现"></textarea></label>
+          <label class="ef-row"><span id="actionItemsLabel">行动项</span><textarea name="actionItems" rows="2" placeholder="接下来要验证、实践或处理什么"></textarea></label>
+          <label class="ef-row"><span id="conclusionLabel">结论</span><textarea name="conclusion" rows="3" placeholder="形成可以复用的最终判断"></textarea></label>
+        </fieldset>
+        <fieldset class="ef-set template-software" hidden>
           <legend>📦 下载安装</legend>
           <label class="ef-row"><span>下载状态</span><select name="downloadStatus"><option>未下载</option><option>已下载</option></select></label>
           <label class="ef-row"><span>安装包</span><input name="installerName" type="text" placeholder="文件名/来源"></label>
           <label class="ef-row"><span>安装状态</span><select name="installStatus"><option>未安装</option><option>已安装</option></select></label>
           <label class="ef-row"><span>安装路径</span><input name="installPath" type="text" placeholder="如 C:\Program Files\xxx"></label>
         </fieldset>
-        <fieldset class="ef-set">
+        <fieldset class="ef-set template-software" hidden>
           <legend>⭐ 体验评价</legend>
           <label class="ef-row"><span>评分</span><select name="rating"><option value="1">⭐</option><option value="2">⭐⭐</option><option value="3">⭐⭐⭐</option><option value="4">⭐⭐⭐⭐</option><option value="5">⭐⭐⭐⭐⭐</option></select></label>
           <label class="ef-row"><span>是否达预期</span><select name="metExpectation"><option value="">-</option><option>是</option><option>否</option><option>部分</option></select></label>
@@ -181,7 +289,7 @@
           </div>
           <div id="ssGrid" class="ss-grid"></div>
         </fieldset>
-        <fieldset class="ef-set">
+        <fieldset class="ef-set template-software" hidden>
           <legend>🔖 收藏判定</legend>
           <label class="ef-row"><span>值得收藏备用</span><select name="keep"><option>否</option><option>是</option></select></label>
           <label class="ef-row"><span>推荐指数</span><select name="recommendLevel"><option value="1">⭐</option><option value="2">⭐⭐</option><option value="3">⭐⭐⭐</option><option value="4">⭐⭐⭐⭐</option><option value="5">⭐⭐⭐⭐⭐</option></select></label>
@@ -204,14 +312,15 @@
   </main>
 
   <footer>
-    <span>本地解析 · 数据不上传 · 浏览器自动备份</span>
+    <span>本地优先 · 核心数据保存在本机 · 浏览器自动备份</span>
     <span id="footerFile">未加载</span>
   </footer>
 
   <!-- 快捷键面板 -->
-  <div class="modal-overlay" id="hotkeyModal">
+  <div class="modal-overlay" id="hotkeyModal" role="dialog" aria-modal="true" aria-labelledby="hotkeyTitle">
     <div class="modal hotkey-modal" style="max-width:560px">
-      <div class="m-title">⌨ 快捷键</div>
+      <button type="button" class="modal-x" aria-label="关闭">×</button>
+      <div class="m-title" id="hotkeyTitle">⌨ 快捷键</div>
       <div class="m-sub">无需鼠标，一气呵成。</div>
       <div class="hotkey-grid">
         <div class="hk"><kbd>J</kbd> <kbd>K</kbd><span>上下移动（列表）</span></div>
@@ -220,6 +329,7 @@
         <div class="hk"><kbd>R</kbd><span>随机抽取研究</span></div>
         <div class="hk"><kbd>E</kbd><span>沉浸研究当前行</span></div>
         <div class="hk"><kbd>S</kbd><span>统计洞察</span></div>
+        <div class="hk"><kbd>B</kbd><span>头脑风暴</span></div>
         <div class="hk"><kbd>/</kbd><span>聚焦搜索框</span></div>
         <div class="hk"><kbd>双击</kbd> 分类 chip<span>折叠 / 展开该分类</span></div>
         <div class="hk"><kbd>Esc</kbd><span>关闭任意模态</span></div>
@@ -227,7 +337,7 @@
       </div>
     </div>
   </div>
-  <div class="toast" id="toast"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <!-- 粒子 -->
   <div class="particle-field" id="particleField"></div>
   <!-- 批量操作栏 -->
@@ -240,9 +350,10 @@
   </div>
 
   <!-- 随机抽取模态 -->
-  <div class="modal-overlay" id="rollModal">
+  <div class="modal-overlay" id="rollModal" role="dialog" aria-modal="true" aria-labelledby="rollTitle">
     <div class="modal" style="max-width:460px">
-      <div class="m-title">今天研究这个</div>
+      <button type="button" class="modal-x" aria-label="关闭">×</button>
+      <div class="m-title" id="rollTitle">今天研究这个</div>
       <div class="m-sub">从待研究清单里随机抽一个，交给命运。</div>
       <div class="roll-stage">
         <div class="roll-name" id="rollName">准备就绪</div>
@@ -257,19 +368,65 @@
   </div>
 
   <!-- 统计模态 -->
-  <div class="modal-overlay" id="statsModal">
+  <div class="modal-overlay" id="statsModal" role="dialog" aria-modal="true" aria-labelledby="statsTitle">
     <div class="modal">
-      <div class="m-title">统计洞察</div>
+      <button type="button" class="modal-x" aria-label="关闭">×</button>
+      <div class="m-title" id="statsTitle">统计洞察</div>
       <div class="m-sub" id="statsSub"></div>
       <div class="rings" id="rings"></div>
     </div>
   </div>
 
+  <div class="modal-overlay" id="trashModal" role="dialog" aria-modal="true" aria-labelledby="trashTitle">
+    <div class="modal">
+      <button type="button" class="modal-x" aria-label="关闭">×</button>
+      <div class="m-title" id="trashTitle">回收站</div>
+      <div class="m-sub">删除的条目会保留完整 Markdown 和研究档案，可以随时恢复。</div>
+      <div class="trash-list" id="trashList"><div class="trash-empty">加载中…</div></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="dataModal" role="dialog" aria-modal="true" aria-labelledby="dataTitle">
+    <div class="modal">
+      <button type="button" class="modal-x" aria-label="关闭">×</button>
+      <div class="m-title" id="dataTitle">数据管理</div>
+      <div class="m-sub">导出包含 DATA.md、研究笔记、正文和截图的完整备份包；导入前会自动保留当前完整副本。</div>
+      <div class="data-actions">
+        <button class="btn primary" id="exportBackupBtn">导出完整备份</button>
+        <button class="btn" id="importBackupBtn">从备份恢复</button>
+        <button class="btn" id="importBookmarksBtn">导入浏览器书签</button>
+        <button class="btn" id="exportDiagnosticsBtn">导出诊断信息</button>
+        <input type="file" id="backupFileInput" accept="application/json,.json" hidden>
+        <input type="file" id="bookmarkFileInput" accept="text/html,.html,.htm" hidden>
+      </div>
+      <div class="data-note">书签 HTML 会在本机预检、过滤重复项并一次性导入“收件箱”；原文件夹会转换成标签，不会逐条访问外部网页。</div>
+      <pre class="diagnostics" id="diagnostics">正在读取诊断信息…</pre>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="onboardingModal" role="dialog" aria-modal="true" aria-labelledby="onboardingTitle">
+    <div class="modal onboarding-modal">
+      <button type="button" class="modal-x onboarding-dismiss" aria-label="关闭">×</button>
+      <div class="onboarding-kicker">3 分钟上手</div>
+      <div class="m-title" id="onboardingTitle">把“稍后看看”变成真正的研究成果</div>
+      <div class="m-sub">数据默认留在本机。先收藏，再研究，最后沉淀结论。</div>
+      <div class="onboarding-steps">
+        <article><span>01</span><strong>收藏链接</strong><p>点“新增”粘贴网址，补一句为什么值得收藏。</p></article>
+        <article><span>02</span><strong>开始研究</strong><p>在档案里选模板、抓取正文，并记录关键发现与行动项。</p></article>
+        <article><span>03</span><strong>保护数据</strong><p>在“数据管理”中导出完整备份，也可批量导入浏览器书签。</p></article>
+      </div>
+      <div class="onboarding-actions">
+        <button type="button" class="btn" id="onboardingLaterBtn">先看看</button>
+        <button type="button" class="btn primary" id="onboardingStartBtn">收藏第一个链接</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 沉浸研究模态 -->
-  <div class="study-overlay" id="studyOverlay">
+  <div class="study-overlay" id="studyOverlay" role="dialog" aria-modal="true" aria-labelledby="studyTitle">
     <div class="study">
       <div class="s-cover">
-        <button class="s-back" id="studyBack" title="退出（Esc）">
+        <button type="button" class="s-back" id="studyBack" title="退出（Esc）" aria-label="退出研究模式">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
         <img id="studyImg" alt="封面" hidden>
@@ -300,7 +457,7 @@
           </div>
         </div>
         <div class="s-note">
-          <label for="studyNote">研究笔记（自动写回 README 的研究要点）</label>
+          <label for="studyNote">研究笔记（自动写回 DATA.md 的研究要点）</label>
           <textarea id="studyNote" placeholder="记录研究发现、踩坑、心得…"></textarea>
         </div>
         <div class="s-actions" style="margin-top:2px">
@@ -311,10 +468,10 @@
   </div>
 
   <!-- 新增模态 -->
-  <div class="modal-overlay" id="modal">
+  <div class="modal-overlay" id="modal" role="dialog" aria-modal="true" aria-labelledby="addTitle">
     <div class="modal">
-      <h3>新增待办条目</h3>
-      <p class="sub">粘贴链接，自动抓取标题、作者、简介、封面并分类。抓取结果可微调，确认后直接写入 README.md。</p>
+      <h3 id="addTitle">新增待办条目</h3>
+      <p class="sub">粘贴链接，自动抓取标题、作者、简介、封面并分类。抓取结果可微调，确认后保存到 DATA.md。</p>
 
       <label for="fetchUrl">链接</label>
       <div style="display:flex;gap:8px">
@@ -347,23 +504,37 @@
           <div>
             <label for="linkCat">分类</label>
             <select id="linkCat"></select>
+            <input type="text" id="linkCustomCat" placeholder="输入自定义分类" hidden style="margin-top:8px">
           </div>
         </div>
         <label for="linkDesc">简介（可选）</label>
         <textarea id="linkDesc" placeholder="自动识别的简介"></textarea>
+        <div class="row2">
+          <div><label for="linkTags">标签（可选）</label><input type="text" id="linkTags" placeholder="例如：本地优先, 数据迁移"></div>
+          <div><label for="linkWhy">为什么收藏（可选）</label><input type="text" id="linkWhy" placeholder="以后准备解决什么问题"></div>
+        </div>
         <label>难度</label>
         <div class="stars" id="starPicker">
-          <button data-d="1">⭐</button>
-          <button data-d="2">⭐⭐</button>
-          <button data-d="3">⭐⭐⭐</button>
+          <button type="button" data-d="1" aria-label="难度一星" aria-pressed="true">⭐</button>
+          <button type="button" data-d="2" aria-label="难度二星" aria-pressed="false">⭐⭐</button>
+          <button type="button" data-d="3" aria-label="难度三星" aria-pressed="false">⭐⭐⭐</button>
         </div>
       </div>
 
       <div class="actions">
         <button class="btn" id="cancelBtn">取消</button>
-        <button class="btn primary" id="genBtn" hidden>写入 README</button>
+        <button class="btn primary" id="genBtn" hidden>保存到 DATA.md</button>
       </div>
       <div class="ok-msg" id="okMsg"></div>
+      <div class="duplicate-box" id="duplicateBox" role="alert" hidden>
+        <strong id="duplicateTitle">该链接已存在</strong>
+        <span>你可以打开已有条目继续研究，或明确保留一份新的副本。</span>
+        <div>
+          <button type="button" class="btn" id="duplicateOpenBtn">打开已有条目</button>
+          <button type="button" class="btn" id="duplicateMergeBtn">合并标签与原因</button>
+          <button type="button" class="btn" id="duplicateSaveBtn">仍然保存副本</button>
+        </div>
+      </div>
     </div>
   </div>
 

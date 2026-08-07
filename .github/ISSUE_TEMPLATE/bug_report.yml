@@ -1,0 +1,41 @@
+name: Bug 报告
+description: 报告可复现的功能、界面或解析问题
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: 提交前请导出诊断信息，并删除其中你不希望公开的环境字段。不要上传 DATA.md、完整备份或密钥。
+  - type: input
+    id: version
+    attributes:
+      label: 应用版本
+      placeholder: 例如 2.0.0-beta.1
+    validations:
+      required: true
+  - type: dropdown
+    id: system
+    attributes:
+      label: 操作系统
+      options: [Windows 11, Windows 10, macOS, Linux, 其他]
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 请从启动应用开始，列出最短复现路径。
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期结果与实际结果
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: 诊断信息与日志
+      description: 可粘贴匿名诊断 JSON 和相关错误；请先移除隐私、正文和凭据。
+      render: shell
