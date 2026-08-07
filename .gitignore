@@ -7,6 +7,7 @@ DATA.backup-*.md
 docs/entries/
 .linggan/
 dist/
+.demo-site/
 launcher/Payload.zip
 launcher/bin/
 launcher/obj/

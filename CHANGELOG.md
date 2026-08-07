@@ -2,6 +2,11 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## 未发布
+
+- 新增 GitHub Pages 只读在线 Demo，使用公共示例数据展示核心工作台与预置头脑风暴方案。
+- 增加 Demo 自动构建测试、Pages 自动部署流程，以及从 Demo 下载本地版的产品引导。
+
 ## [2.0.0-beta.2] - 2026-08-07
 
 ### 新增

@@ -36,6 +36,12 @@ const STATUS = {
   "✅": { key: "done",   label: "已完成" },
 };
 
+const DEMO_MODE = (() => {
+  try {
+    return new URLSearchParams(window.location.search).get("demo") === "1" || window.location.hostname.endsWith(".github.io");
+  } catch (_) { return false; }
+})();
+
 const CAT_TEXTURES = {
   "AI 工具": (c) => `<circle cx="20" cy="20" r="3" fill="${c}"/><circle cx="80" cy="20" r="3" fill="${c}"/><circle cx="50" cy="60" r="3" fill="${c}"/><circle cx="20" cy="100" r="3" fill="${c}"/><circle cx="80" cy="100" r="3" fill="${c}"/><path d="M20 20 L80 20 L50 60 L20 100 L80 100" fill="none" stroke="${c}" stroke-width="1" opacity="0.5"/>`,
   "硬件 & 嵌入式": (c) => `<path d="M10 30 h40 v40 h40" fill="none" stroke="${c}" stroke-width="1.5"/><path d="M90 30 h20 v60 h-40" fill="none" stroke="${c}" stroke-width="1.5" opacity="0.6"/><circle cx="10" cy="30" r="3" fill="${c}"/><circle cx="90" cy="70" r="3" fill="${c}"/>`,
@@ -83,6 +89,7 @@ let state = {
   sortField: "id",
   sortDir: "asc",
   httpMode: false,
+  demoMode: DEMO_MODE,
   serviceStatus: "connecting",
   serviceReachable: false,
   dataName: "数据文件",  // 数据文件名（服务模式来自 /api/data 的 name，如 DATA.md）
@@ -451,6 +458,7 @@ function setServiceState(status) {
   const states = {
     connecting: { label: "连接中", title: "正在连接本地服务", dot: "loading" },
     online: { label: "本地已保存", title: "服务正常，修改会写入本地数据", dot: "ok" },
+    demo: { label: "在线演示", title: "公共示例数据，只读体验；点击查看说明", dot: "ok" },
     "offline-cache": { label: "只读备份", title: "服务未连接，当前显示浏览器缓存；点击重试", dot: "err" },
     "data-error": { label: "数据异常", title: "服务可访问，但数据读取失败；点击重试", dot: "err" },
     file: { label: "只读文件", title: "当前是手动选择的只读文件；点击连接本地服务", dot: "err" },
@@ -468,6 +476,7 @@ function setServiceState(status) {
   dot.classList.remove("ok", "err", "loading");
   dot.classList.add(current.dot);
   document.body.classList.toggle("is-readonly", !state.httpMode);
+  document.body.classList.toggle("is-demo", state.demoMode);
   const addButton = document.getElementById("addBtn");
   if (addButton) addButton.disabled = !state.httpMode;
   const brainstormSaveButton = document.getElementById("brainstormSaveBtn");
@@ -477,6 +486,10 @@ function setServiceState(status) {
 
 function requireService(action) {
   if (state.httpMode) return true;
+  if (state.demoMode) {
+    toast(`${action || "该操作"}需要本地版；在线 Demo 不会保存修改`, "err");
+    return false;
+  }
   toast(`${action || "该操作"}需要连接本地服务；当前内容为只读`, "err");
   return false;
 }
@@ -605,6 +618,35 @@ async function httpLoad() {
   }
 }
 
+async function demoLoad() {
+  state.demoMode = true;
+  state.serviceReachable = false;
+  setServiceState("demo");
+  document.getElementById("demoBanner").hidden = false;
+  try {
+    const response = await fetch("DATA.example.md", { cache: "no-store" });
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    const content = await response.text();
+    if (!content.trim()) throw new Error("示例数据为空");
+    state.dataName = "公共示例数据";
+    applyText(content, "公共示例数据", "在线演示");
+    document.getElementById("footerFile").textContent = "DEMO · 公共示例数据";
+    document.getElementById("reloadBtn").textContent = "重置 Demo";
+    const goal = document.getElementById("brainstormGoal");
+    goal.readOnly = true;
+    goal.title = "在线 Demo 使用预置分析目标；下载本地版可自由分析自己的项目库";
+    document.querySelectorAll("[data-brainstorm-goal]").forEach(button => { button.disabled = true; });
+    const goalButton = document.getElementById("brainstormGoalBtn");
+    goalButton.disabled = true;
+    goalButton.textContent = "预置演示方案";
+    return true;
+  } catch (error) {
+    setLoaded(false);
+    toast("在线 Demo 加载失败：" + error.message, "err");
+    return false;
+  }
+}
+
 async function restoreFromBackup() {
   if (!confirm(`将用浏览器备份覆盖 ${state.dataName} 当前内容，确认恢复？`)) return;
   const bak = await idbGet("backup", "readme");
@@ -668,9 +710,11 @@ document.getElementById("dataFileInput").addEventListener("change", async e => {
   } catch (error) { toast("读取文件失败：" + error.message, "err"); }
 });
 document.getElementById("reloadBtn").addEventListener("click", async () => {
-  if (state.httpMode) await httpLoad();
+  if (state.demoMode) await demoLoad();
+  else if (state.httpMode) await httpLoad();
 });
 document.getElementById("svcState").addEventListener("click", async () => {
+  if (state.demoMode) { toast("当前为只读在线 Demo；下载本地版可保存自己的数据", "ok"); return; }
   if (state.httpMode) { toast("本地服务正常，数据会自动保存", "ok"); return; }
   const connected = await httpLoad();
   const online = connected && state.httpMode;
@@ -1180,7 +1224,7 @@ document.getElementById("duplicateMergeBtn").addEventListener("click", async () 
  * 启动
  * ============================================================ */
 async function init() {
-  const ok = await httpLoad();
+  const ok = state.demoMode ? await demoLoad() : await httpLoad();
   try {
     if (ok && localStorage.getItem("product_view") === "brainstorm") {
       setProductView("brainstorm", { instant: true });
@@ -1359,7 +1403,7 @@ function rollStart() {
   }, 70 + tick * 6);
 }
 document.getElementById("rollBtn").addEventListener("click", () => {
-  if (!state.httpMode || !state.items.length) { toast("请先加载数据", "err"); return; }
+  if ((!state.httpMode && !state.demoMode) || !state.items.length) { toast("请先加载数据", "err"); return; }
   rollStart();
 });
 document.getElementById("rollAgain").addEventListener("click", rollStart);
@@ -1684,7 +1728,10 @@ async function loadBrainstorm() {
   saveButton.disabled = true;
   try {
     try { localStorage.setItem("brainstorm_goal", goal); } catch (_) {}
-    const response = await fetch("/api/brainstorm?mode=" + encodeURIComponent(brainstormMode) + "&goal=" + encodeURIComponent(goal), {
+    const endpoint = state.demoMode
+      ? "demo-brainstorm.json"
+      : "/api/brainstorm?mode=" + encodeURIComponent(brainstormMode) + "&goal=" + encodeURIComponent(goal);
+    const response = await fetch(endpoint, {
       cache: "no-store",
       signal: brainstormController.signal,
     });
@@ -1705,7 +1752,7 @@ async function loadBrainstorm() {
     if (sequence !== brainstormLoadSequence) return;
     brainstormController = null;
     button.disabled = false;
-    goalButton.disabled = false;
+    goalButton.disabled = state.demoMode;
     saveButton.disabled = !state.httpMode || !brainstormLastAnalysis;
   }
 }
@@ -1729,6 +1776,10 @@ function renderBrainstormHistory(items) {
 
 async function loadBrainstormHistory() {
   const container = document.getElementById("brainstormHistory");
+  if (state.demoMode) {
+    container.innerHTML = '<div class="brainstorm-history-empty">在线 Demo 不保存方案；本地版会把每轮结果沉淀为 Markdown 决策记录。</div>';
+    return;
+  }
   try {
     const response = await fetch("/api/brainstorm/history", { cache: "no-store" });
     const data = await readJsonResponse(response);
@@ -1762,7 +1813,7 @@ async function saveBrainstormReport() {
 }
 
 function openBrainstorm() {
-  if (!state.httpMode) { toast("请先启动本地服务", "err"); return; }
+  if (!state.httpMode && !state.demoMode) { toast("请先启动本地服务", "err"); return; }
   if (!state.items.length) { toast("请先新增至少一个待研究事项", "err"); return; }
   setProductView("brainstorm");
 }
@@ -2054,7 +2105,7 @@ function timerPaint() {
   document.getElementById("timerRing").style.background = `conic-gradient(var(--accent) ${pct * 3.6}deg, var(--border) ${pct * 3.6}deg)`;
 }
 function openStudy(item) {
-  if (!state.httpMode) { toast("请先启动服务", "err"); return; }
+  if (!state.httpMode && !state.demoMode) { toast("请先启动服务", "err"); return; }
   studyItem = item;
   document.getElementById("studyTitle").textContent = item.name;
   const color = catColor(item.category);
@@ -2234,6 +2285,11 @@ function escapeAttr(s) {
 }
 
 function openEntry(id) {
+  if (state.demoMode) {
+    const item = state.items.find(entry => entry.id === String(id));
+    if (item) openStudy(item);
+    return;
+  }
   if (!requireService("打开研究档案")) return;
   currentEntryId = String(id);
   // 隐藏看板视图与列表视图，显示详情视图

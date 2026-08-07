@@ -8,12 +8,14 @@
 
 <p align="center">
   <a href="https://github.com/WYHCIPUC/TodoBoard/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/WYHCIPUC/TodoBoard/ci.yml?branch=main&style=flat-square" alt="CI 状态"></a>
+  <a href="https://wyhcipuc.github.io/TodoBoard/?demo=1"><img src="https://img.shields.io/badge/在线_Demo-立即体验-C2410C?style=flat-square" alt="在线 Demo"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/WYHCIPUC/TodoBoard?style=flat-square" alt="MIT License"></a>
   <img src="https://img.shields.io/badge/Node.js-%E2%89%A520-C2410C?style=flat-square" alt="Node.js 20 或更高版本">
   <img src="https://img.shields.io/badge/data-local%20Markdown-221D16?style=flat-square" alt="数据保存在本地 Markdown">
 </p>
 
 <p align="center">
+  <a href="https://wyhcipuc.github.io/TodoBoard/?demo=1">在线 Demo</a> ·
   <a href="#快速开始">快速开始</a> ·
   <a href="#它如何工作">工作方式</a> ·
   <a href="#支持的内容">解析支持</a> ·
@@ -23,6 +25,8 @@
 ## 先看实际效果
 
 数据不是锁在数据库里，而是始终保存在你能直接阅读、编辑和备份的 `DATA.md` 中。看板只负责让收集、筛选和研究更顺手。
+
+**[打开在线 Demo](https://wyhcipuc.github.io/TodoBoard/?demo=1)** — 使用公共示例数据，可体验搜索、筛选、列表/看板、统计和头脑风暴；演示站为只读模式，不会上传或保存个人数据。
 
 <p align="center">
   <img src="./assets/readme/showcase-list.png" width="100%" alt="灵感来袭列表视图，展示统计、分类筛选和待研究项目">
