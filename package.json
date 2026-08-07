@@ -9,6 +9,7 @@
     "doctor": "node scripts/doctor.js",
     "package:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-release.ps1",
     "package:portable": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-portable.ps1",
+    "package:exe": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-executable.ps1",
     "test": "node scripts/run-tests.js",
     "test:integration": "node scripts/run-scraper-tests.js",
     "check": "node --check server.js && node --check board.js && node scripts/run-tests.js"

@@ -65,16 +65,16 @@
 
 ## 快速开始
 
-普通用户推荐使用自带运行时的 Windows 便携版；从源码运行时需要 Node.js 20 或更高版本。
+普通用户推荐下载 Windows 单文件版；双击即可启动，无需安装 Node.js，也无需解压。
 
 ### Windows 快速开始
 
-1. 下载并解压 `linggankanban-2.0.0-beta.1-windows-portable-x64.zip`，不要直接在压缩包内运行。
-2. 双击 `start-portable.bat`，无需另行安装 Node.js。
+1. 从 [GitHub Releases](https://github.com/WYHCIPUC/TodoBoard/releases) 下载 `linggankanban-2.0.0-beta.1-windows-x64.exe`。
+2. 双击该文件。首次启动会显示准备进度，完成后自动打开浏览器。
 
-请先完整解压后再运行启动器，不要直接双击 `board.html` 或在压缩包预览窗口中运行 `.bat`。
+程序与内置运行时会缓存到 `%LOCALAPPDATA%\LingganKanban\app`；收藏、研究档案和备份独立保存在“文档\LingganKanban”，替换或升级 EXE 不会覆盖这些数据。
 
-便携版内置经官方 SHA-256 校验的 Node.js 22.23.2 x64 运行时和锁定依赖；启动器仍会检查数据目录权限和端口占用。如果看板已经运行，则直接打开浏览器。
+单文件版内置经官方 SHA-256 校验的 Node.js 22.23.2 x64 运行时和锁定依赖；启动器会检查数据目录权限和端口占用。如果看板已经运行，则直接打开浏览器。当前 Beta 尚未购买代码签名证书；请只从本仓库 Release 下载，并用发行页提供的 SHA-256 校验文件核对完整性。需要免安装压缩包时，仍可选择 `windows-portable-x64.zip`。
 
 开发者或需要自定义运行时的用户可以使用源码包：
 

@@ -49,13 +49,20 @@
 ```powershell
 npm run package:windows
 npm run package:portable
+npm run package:exe
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/smoke-executable.ps1
 ```
 
+- [ ] 在干净 Windows 10/11 x64 环境直接双击 `dist/linggankanban-2.0.0-beta.1-windows-x64.exe`，确认无需安装 Node.js 或解压。
+- [ ] 验证 EXE 首次启动有进度反馈、二次启动复用缓存，已有服务运行时不会重复启动。
+- [ ] 替换 EXE 后重新启动，确认“文档\LingganKanban”中的条目、档案和备份仍然存在。
+- [ ] 占用默认端口后启动 EXE，确认显示清晰错误；释放端口或设置新端口后可恢复。
 - [ ] 解压 `dist/linggankanban-2.0.0-beta.1-windows.zip` 并从该目录完成一次验收。
 - [ ] 解压 `dist/linggankanban-2.0.0-beta.1-windows-portable-x64.zip`，在未安装 Node.js 的环境双击 `start-portable.bat`。
 - [ ] 便携包内置版本为 Node.js 22.23.2，包含 `NODE-LICENSE.txt` 与 `RUNTIME-NOTICE.txt`。
 - [ ] 计算并发布 SHA-256：`Get-FileHash dist\linggankanban-2.0.0-beta.1-windows.zip -Algorithm SHA256`。
 - [ ] 同时计算并发布便携包 SHA-256。
+- [ ] 计算并发布单文件 EXE 的 SHA-256，并与 EXE、便携包一起上传到 GitHub Release。
 - [ ] Git 标签与 `package.json` 一致：`v2.0.0-beta.1`。
 - [ ] GitHub Release 标记为 Pre-release，并使用 `CHANGELOG.md` 对应章节作为发行说明。
 

@@ -7,6 +7,9 @@ DATA.backup-*.md
 docs/entries/
 .linggan/
 dist/
+launcher/Payload.zip
+launcher/bin/
+launcher/obj/
 
 # 工具内部目录（ZCode 会话计划等，勿入库）
 .zcode/
