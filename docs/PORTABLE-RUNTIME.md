@@ -1,6 +1,6 @@
 # Windows 单文件与便携运行时
 
-Windows 10/11 x64 用户优先使用 `linggankanban-2.0.0-beta.1-windows-x64.exe`：这是可直接双击的单文件程序，不要求安装 Node.js 或手动解压。`windows-portable-x64.zip` 保留给需要查看完整目录或自行管理运行位置的用户。
+Windows 10/11 x64 用户优先使用 `linggankanban-2.0.0-beta.2-windows-x64.exe`：这是可直接双击的单文件程序，不要求安装 Node.js 或手动解压。`windows-portable-x64.zip` 保留给需要查看完整目录或自行管理运行位置的用户。
 
 ## 构建内容
 

@@ -56,6 +56,7 @@ const audit = require("./lib/audit");
 const bookmarks = require("./lib/bookmarks");
 const health = require("./lib/health");
 const brainstorm = require("./lib/brainstorm");
+const brainstormHistory = require("./lib/brainstorm-history");
 const { openBrowser } = require("./scripts/open-browser");
 
 const PORT = Number(process.env.PORT) || 3865;
@@ -78,13 +79,16 @@ function ensureDataFile() {
   const example = path.join(DIR, "DATA.example.md");
   if (!fs.existsSync(example)) return;
   try {
+    fs.mkdirSync(path.dirname(README), { recursive: true });
     fs.copyFileSync(example, README);
     console.log("  数据文件不存在，已从 DATA.example.md 初始化");
   } catch (e) { recordError("initData", e); }
 }
 
-/* 本地服务兜底：任何未捕获异常 / 未处理 Promise 拒绝只记录，不让整个服务退出 */
-const ERROR_LOG = path.join(DIR, "docs", "server-error.log");
+/* 服务错误日志跟随用户数据目录，升级程序时不会丢失。 */
+const ERROR_LOG = process.env.SERVER_ERROR_LOG_FILE
+  ? path.resolve(process.env.SERVER_ERROR_LOG_FILE)
+  : path.join(path.dirname(README), ".linggan", "server-error.log");
 function recordError(tag, e) {
   const line = new Date().toISOString() + " [" + tag + "] " + (e && e.stack || e) + "\n";
   try {
@@ -93,9 +97,6 @@ function recordError(tag, e) {
   } catch (_) {}
   console.error("[" + tag + "]", e && e.stack || e);
 }
-process.on("uncaughtException", e => recordError("uncaughtException", e));
-process.on("unhandledRejection", reason => recordError("unhandledRejection", reason));
-
 /* ============================================================
  * HTTP 服务
  * ============================================================ */
@@ -337,6 +338,41 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (p === "/api/brainstorm/history" && req.method === "GET") {
+    try { sendJson(res, 200, { ok: true, items: brainstormHistory.listReports(12) }); }
+    catch (e) { sendJson(res, 500, { ok: false, error: e.message }); }
+    return;
+  }
+
+  if (p === "/api/brainstorm/report" && req.method === "GET") {
+    try {
+      const id = (u.searchParams.get("id") || "").trim();
+      const content = brainstormHistory.readReport(id);
+      res.writeHead(200, {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Content-Disposition": `attachment; filename="brainstorm-${id}.md"`,
+        "Content-Length": Buffer.byteLength(content),
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+      });
+      res.end(content);
+    } catch (e) { sendJson(res, e.statusCode || 400, { ok: false, error: e.message }); }
+    return;
+  }
+
+  if (p === "/api/brainstorm/save" && req.method === "POST") {
+    handleJson(req, res, data => {
+      const goal = String(data.goal || "").trim().slice(0, 400);
+      const allowedModes = new Set(["fusion", "panorama", "opportunities", "challenges", "roadmap"]);
+      const mode = allowedModes.has(data.mode) ? data.mode : "fusion";
+      if (!goal) throw requestError("请先输入一个实际需求", 400);
+      const analysis = brainstorm.analyze(store.readAll(), { entriesDir: entries.ENTRIES_DIR, mode, goal });
+      const saved = brainstormHistory.saveReport(analysis);
+      sendJson(res, 201, { ok: true, saved });
+    });
+    return;
+  }
+
   if (p === "/api/backup" && req.method === "GET") {
     try {
       const payload = JSON.stringify(backup.exportBundle());
@@ -411,6 +447,7 @@ const server = http.createServer((req, res) => {
         node: process.version,
         platform: process.platform,
         integrations: { wecom: wecom.isEnabled(), dingtalk: dingtalk.isEnabled() },
+        brainstormReports: brainstormHistory.listReports(50).length,
       });
     } catch (e) { sendJson(res, 500, { ok: false, error: e.message }); }
     return;
@@ -691,12 +728,36 @@ server.on("error", e => {
   process.exit(1);
 });
 
-/* 优雅退出 */
-process.on("SIGINT", () => {
-  console.log("\n  服务已停止");
-  process.exit(0);
+/* 未捕获异常后不再继续提供可能不一致的服务；先停止接入并等待现有请求结束。 */
+let shuttingDown = false;
+function shutdown(reason, exitCode) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  if (reason) console.log("\n  正在停止服务：" + reason);
+  try { dingtalk.stop(); } catch (error) { recordError("integrationStop", error); }
+  const forceExit = setTimeout(() => process.exit(exitCode), 3000);
+  forceExit.unref();
+  if (!server.listening) {
+    clearTimeout(forceExit);
+    process.exit(exitCode);
+    return;
+  }
+  server.close(error => {
+    clearTimeout(forceExit);
+    if (error) recordError("serverClose", error);
+    process.exit(exitCode);
+  });
+}
+process.on("SIGINT", () => shutdown("收到 Ctrl+C", 0));
+process.on("SIGTERM", () => shutdown("收到退出信号", 0));
+process.on("uncaughtException", error => {
+  recordError("uncaughtException", error);
+  shutdown("发生未捕获异常", 1);
 });
-process.on("SIGTERM", () => process.exit(0));
+process.on("unhandledRejection", reason => {
+  recordError("unhandledRejection", reason);
+  shutdown("发生未处理的异步异常", 1);
+});
 
 /* 统一入库辅助：抓取元数据 + 写入 DATA.md（供企业微信/钉钉等外部入口复用） */
 async function addUrlToBoard(url) {

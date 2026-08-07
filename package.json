@@ -1,6 +1,6 @@
 {
   "name": "linggankanban",
-  "version": "2.0.0-beta.1",
+  "version": "2.0.0-beta.2",
   "private": true,
   "description": "灵感来袭：本地优先的链接收集、研究与待办看板",
   "main": "server.js",

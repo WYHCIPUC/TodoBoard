@@ -54,7 +54,7 @@
 | 粘贴即解析 | 自动提取元数据并归入 8 类项目库 |
 | 列表 / 看板双视图 | 搜索、排序、按分类或状态筛选 |
 | 研究档案 | 正文存档、独立笔记、截图和计时 |
-| 头脑风暴 | 独立一级工作台；以真实需求为起点，解释每个候选项目贡献的能力、审美或方法，生成多条融合路径和 MVP；同时展示多维雷达、知识网络、跨域矩阵、机会、挑战与行动路线 |
+| 头脑风暴 | 独立一级工作台；以真实需求为起点，解释候选项目贡献，生成多条融合路径和 MVP；同时展示多维关系，并可把本轮方案保存为本地 Markdown 持续复盘 |
 | 本地优先 | 单一 Markdown 数据源、原子写入和自动备份 |
 | 低成本迁移 | Chrome、Edge 等浏览器书签可预检后批量导入，原文件夹自动保留为标签 |
 | 重复治理 | 重复链接可打开已有条目、合并标签与收藏原因，或明确保留副本 |
@@ -69,7 +69,7 @@
 
 ### Windows 快速开始
 
-1. 从 [GitHub Releases](https://github.com/WYHCIPUC/TodoBoard/releases) 下载 `linggankanban-2.0.0-beta.1-windows-x64.exe`。
+1. 从 [GitHub Releases](https://github.com/WYHCIPUC/TodoBoard/releases) 下载 `linggankanban-2.0.0-beta.2-windows-x64.exe`。
 2. 双击该文件。首次启动会显示准备进度，完成后自动打开浏览器。
 
 程序与内置运行时会缓存到 `%LOCALAPPDATA%\LingganKanban\app`；收藏、研究档案和备份独立保存在“文档\LingganKanban”，替换或升级 EXE 不会覆盖这些数据。
@@ -120,6 +120,8 @@ Windows 的升级、数据迁移、改端口和卸载步骤见 [Windows 使用�
 | `EXPENSIVE_RATE_LIMIT` | `30` | 单个客户端每分钟抓取类请求上限 |
 | `RATE_WINDOW_MS` | `60000` | 限流统计窗口，单位毫秒 |
 | `AUDIT_LOG_FILE` | 数据目录下 `.linggan/audit.log` | 操作审计日志；不记录正文、链接或请求体 |
+| `SERVER_ERROR_LOG_FILE` | 数据目录下 `.linggan/server-error.log` | 服务异常日志；升级程序时继续保留 |
+| `BRAINSTORM_DIR` | 数据目录下 `.linggan/brainstorms/` | 已保存头脑风暴方案的 Markdown 目录 |
 
 </details>
 

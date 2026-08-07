@@ -25,7 +25,9 @@
         <svg class="brand-mark" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <path d="M12 2 L14.8 8.6 L22 11 L14.8 13.4 L12 22 L9.2 13.4 L2 11 L9.2 8.6 Z"/>
         </svg></span>
-        <span class="dot" id="svcDot" title="服务状态"></span>
+        <button type="button" class="svc-state" id="svcState" title="检查本地服务状态" aria-label="本地服务连接中">
+          <span class="dot loading" id="svcDot" aria-hidden="true"></span><span id="svcLabel">连接中</span>
+        </button>
       </span>
       <nav class="product-nav" id="productNav" aria-label="核心工作台">
         <button type="button" class="product-nav-item active" id="inspirationNav" data-product-view="inspiration" aria-label="打开灵感来袭工作台" aria-pressed="true">
@@ -112,7 +114,10 @@
           <h1 id="brainstormTitle">头脑风暴</h1>
           <p>从真实需求出发，提取不同项目的长处，形成有依据、可验证的新方案。</p>
         </div>
-        <button type="button" class="btn brainstorm-refresh" id="brainstormRefreshBtn">更新分析</button>
+        <div class="brainstorm-hero-actions">
+          <button type="button" class="btn brainstorm-refresh" id="brainstormRefreshBtn">更新分析</button>
+          <button type="button" class="btn primary" id="brainstormSaveBtn" disabled>保存本轮方案</button>
+        </div>
       </header>
       <form class="brainstorm-goal-builder" id="brainstormGoalForm">
         <div class="goal-builder-copy">
@@ -167,6 +172,10 @@
       <section class="brainstorm-suggestions-panel" id="brainstormSuggestionsPanel" aria-labelledby="brainstormSuggestionsTitle" hidden>
         <div class="brainstorm-section-head"><strong id="brainstormSuggestionsTitle">机会、挑战与行动建议</strong><span>多种思路并列呈现，每条均可追溯依据</span></div>
         <div class="brainstorm-suggestions" id="brainstormSuggestions"><div class="brainstorm-loading">正在生成多维建议…</div></div>
+      </section>
+      <section class="brainstorm-history-panel" aria-labelledby="brainstormHistoryTitle">
+        <div class="brainstorm-section-head"><strong id="brainstormHistoryTitle">最近保存的方案</strong><span>本地 Markdown，可下载、复盘和继续执行</span></div>
+        <div class="brainstorm-history" id="brainstormHistory"><div class="brainstorm-history-empty">保存本轮方案后，会在这里形成决策记录。</div></div>
       </section>
       <div class="brainstorm-note">分析完全在本机完成，不会上传 DATA.md。补充标签、“为什么收藏”和研究结论，可持续扩大碰撞维度并提高置信度。</div>
     </section>

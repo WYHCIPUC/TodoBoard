@@ -83,6 +83,8 @@ let state = {
   sortField: "id",
   sortDir: "asc",
   httpMode: false,
+  serviceStatus: "connecting",
+  serviceReachable: false,
   dataName: "数据文件",  // 数据文件名（服务模式来自 /api/data 的 name，如 DATA.md）
   listAnim: false,
   lastNewId: null,
@@ -441,6 +443,43 @@ function toast(msg, type) {
  * 数据加载 + 浏览器自动备份
  * ============================================================ */
 let backupInfo = null;
+let brainstormLastAnalysis = null;
+let httpLoadSequence = 0;
+let httpLoadController = null;
+
+function setServiceState(status) {
+  const states = {
+    connecting: { label: "连接中", title: "正在连接本地服务", dot: "loading" },
+    online: { label: "本地已保存", title: "服务正常，修改会写入本地数据", dot: "ok" },
+    "offline-cache": { label: "只读备份", title: "服务未连接，当前显示浏览器缓存；点击重试", dot: "err" },
+    "data-error": { label: "数据异常", title: "服务可访问，但数据读取失败；点击重试", dot: "err" },
+    file: { label: "只读文件", title: "当前是手动选择的只读文件；点击连接本地服务", dot: "err" },
+    offline: { label: "服务未连接", title: "点击重新连接本地服务", dot: "err" },
+  };
+  const current = states[status] || states.offline;
+  state.serviceStatus = status;
+  state.httpMode = status === "online";
+  const control = document.getElementById("svcState");
+  const dot = document.getElementById("svcDot");
+  control.dataset.status = status;
+  control.title = current.title;
+  control.setAttribute("aria-label", current.title);
+  document.getElementById("svcLabel").textContent = current.label;
+  dot.classList.remove("ok", "err", "loading");
+  dot.classList.add(current.dot);
+  document.body.classList.toggle("is-readonly", !state.httpMode);
+  const addButton = document.getElementById("addBtn");
+  if (addButton) addButton.disabled = !state.httpMode;
+  const brainstormSaveButton = document.getElementById("brainstormSaveBtn");
+  if (brainstormSaveButton) brainstormSaveButton.disabled = !state.httpMode || !brainstormLastAnalysis;
+  document.querySelectorAll("#bulkbar button").forEach(button => { button.disabled = !state.httpMode; });
+}
+
+function requireService(action) {
+  if (state.httpMode) return true;
+  toast(`${action || "该操作"}需要连接本地服务；当前内容为只读`, "err");
+  return false;
+}
 
 function setLoaded(show) {
   document.getElementById("statsbar").hidden = true;
@@ -453,7 +492,7 @@ function setLoaded(show) {
 function applyText(text, name, via, fromBackup) {
   state.items = parseMarkdown(text);
   state.listAnim = true;
-  const restoreBtn = fromBackup && state.httpMode
+  const restoreBtn = fromBackup && state.serviceReachable
     ? `<button onclick="restoreFromBackup()">恢复文件</button>` : "";
   const meta = document.getElementById("meta");
   meta.innerHTML = fromBackup
@@ -529,18 +568,20 @@ function fmtTime(ts) {
 }
 
 async function httpLoad() {
-  const dot = document.getElementById("svcDot");
-  dot.classList.remove("ok", "err");
-  dot.classList.add("loading");
+  const sequence = ++httpLoadSequence;
+  if (httpLoadController) httpLoadController.abort();
+  httpLoadController = new AbortController();
+  setServiceState("connecting");
+  state.serviceReachable = false;
   try {
-    const r = await fetch("/api/data", { cache: "no-store" });
+    const r = await fetch("/api/data", { cache: "no-store", signal: httpLoadController.signal });
+    state.serviceReachable = true;
     if (!r.ok) throw new Error("HTTP " + r.status);
     const d = await r.json();
+    if (sequence !== httpLoadSequence) return false;
     if (!d.ok || !d.content) throw new Error("bad data");
-    state.httpMode = true;
     state.dataName = d.name || "数据文件";
-    dot.classList.remove("loading");
-    dot.classList.add("ok");
+    setServiceState("online");
     applyText(d.content, d.name, "服务模式");
     setTimeout(maybeShowOnboarding, 180);
     const now = Date.now();
@@ -548,17 +589,19 @@ async function httpLoad() {
     backupInfo = { time: fmtTime(now) };
     return true;
   } catch (e) {
+    if (e.name === "AbortError" || sequence !== httpLoadSequence) return false;
+    state.httpMode = false;
     const bak = await idbGet("backup", "readme");
     if (bak) {
-      dot.classList.remove("loading");
-      dot.classList.add("err");
+      setServiceState(state.serviceReachable ? "data-error" : "offline-cache");
       applyText(bak.content, bak.name, "浏览器备份（服务未运行）", true);
       backupInfo = { time: fmtTime(bak.time) };
       return true;
     }
-    dot.classList.remove("loading");
-    dot.classList.add("err");
+    setServiceState(state.serviceReachable ? "data-error" : "offline");
     return false;
+  } finally {
+    if (sequence === httpLoadSequence) httpLoadController = null;
   }
 }
 
@@ -617,7 +660,8 @@ document.getElementById("dataFileInput").addEventListener("change", async e => {
   if (!file) return;
   try {
     const text = await file.text();
-    state.httpMode = false;
+    state.serviceReachable = false;
+    setServiceState("file");
     state.dataName = file.name || "数据文件";
     applyText(text, state.dataName, "只读文件模式");
     toast("已进入只读浏览模式；编辑请启动本地服务", "ok");
@@ -625,6 +669,15 @@ document.getElementById("dataFileInput").addEventListener("change", async e => {
 });
 document.getElementById("reloadBtn").addEventListener("click", async () => {
   if (state.httpMode) await httpLoad();
+});
+document.getElementById("svcState").addEventListener("click", async () => {
+  if (state.httpMode) { toast("本地服务正常，数据会自动保存", "ok"); return; }
+  const connected = await httpLoad();
+  const online = connected && state.httpMode;
+  toast(online ? "已重新连接本地服务" : "仍未连接，请确认程序正在运行", online ? "ok" : "err");
+});
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && ["offline", "offline-cache", "data-error"].includes(state.serviceStatus)) httpLoad();
 });
 let deepSearchTimer = null;
 let deepSearchSeq = 0;
@@ -762,6 +815,7 @@ document.getElementById("listView").addEventListener("click", e => {
 
 /* 列表详情面板：状态循环（待研究 → 进行中 → 已完成 → 待研究） */
 async function updateItemStatus(item, next) {
+  if (!requireService("更新状态")) return false;
   const sym = next === "doing" ? "🔄" : next === "done" ? "✅" : "⏳";
   try {
     const r = await fetch("/api/status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: item.id, status: sym }) });
@@ -1127,9 +1181,6 @@ document.getElementById("duplicateMergeBtn").addEventListener("click", async () 
  * ============================================================ */
 async function init() {
   const ok = await httpLoad();
-  if (!ok) {
-    document.getElementById("svcDot").classList.add("err");
-  }
   try {
     if (ok && localStorage.getItem("product_view") === "brainstorm") {
       setProductView("brainstorm", { instant: true });
@@ -1232,6 +1283,7 @@ document.getElementById("listView").addEventListener("change", e => {
   syncPicked();
 });
 async function bulkAction(fn) {
+  if (!requireService("批量操作")) return 0;
   if (!picked.size) return;
   const ids = [...picked];
   try {
@@ -1381,6 +1433,8 @@ document.getElementById("statsModal").addEventListener("click", e => { if (e.tar
 
 /* - 头脑风暴：与灵感看板同级的多维知识碰撞工作台 - */
 let brainstormMode = "fusion";
+let brainstormLoadSequence = 0;
+let brainstormController = null;
 let productView = "inspiration";
 
 function setProductView(view, options) {
@@ -1395,7 +1449,10 @@ function setProductView(view, options) {
     button.setAttribute("aria-pressed", String(selected));
   });
   try { localStorage.setItem("product_view", productView); } catch (_) {}
-  if (active && options.load !== false) loadBrainstorm();
+  if (active && options.load !== false) {
+    loadBrainstorm();
+    loadBrainstormHistory();
+  }
   if (active) window.scrollTo({ top: 0, behavior: options.instant ? "auto" : "smooth" });
 }
 
@@ -1604,12 +1661,16 @@ function renderBrainstorm(data) {
 }
 
 async function loadBrainstorm() {
+  const sequence = ++brainstormLoadSequence;
+  if (brainstormController) brainstormController.abort();
+  brainstormController = new AbortController();
   const graph = document.getElementById("brainstormGraph");
   const fusion = document.getElementById("brainstormFusion");
   const dimensions = document.getElementById("brainstormDimensions");
   const matrix = document.getElementById("brainstormMatrix");
   const suggestions = document.getElementById("brainstormSuggestions");
   const button = document.getElementById("brainstormRefreshBtn");
+  const saveButton = document.getElementById("brainstormSaveBtn");
   const goalButton = document.getElementById("brainstormGoalBtn");
   const goal = document.getElementById("brainstormGoal").value.trim().slice(0, 400);
   graph.innerHTML = '<div class="brainstorm-loading">正在计算事项关联…</div>';
@@ -1617,22 +1678,87 @@ async function loadBrainstorm() {
   dimensions.innerHTML = '<div class="brainstorm-loading">正在展开分析维度…</div>';
   matrix.innerHTML = '<div class="brainstorm-loading">正在计算跨域碰撞…</div>';
   suggestions.innerHTML = '<div class="brainstorm-loading">正在生成多维建议…</div>';
+  brainstormLastAnalysis = null;
   button.disabled = true;
   goalButton.disabled = true;
+  saveButton.disabled = true;
   try {
     try { localStorage.setItem("brainstorm_goal", goal); } catch (_) {}
-    const response = await fetch("/api/brainstorm?mode=" + encodeURIComponent(brainstormMode) + "&goal=" + encodeURIComponent(goal), { cache: "no-store" });
+    const response = await fetch("/api/brainstorm?mode=" + encodeURIComponent(brainstormMode) + "&goal=" + encodeURIComponent(goal), {
+      cache: "no-store",
+      signal: brainstormController.signal,
+    });
     const data = await readJsonResponse(response);
+    if (sequence !== brainstormLoadSequence) return;
     if (!data.ok) throw new Error(data.error || "分析失败");
+    brainstormLastAnalysis = data;
     renderBrainstorm(data);
   } catch (error) {
+    if (error.name === "AbortError" || sequence !== brainstormLoadSequence) return;
     const message = escapeHtml(error.message);
     graph.innerHTML = `<div class="brainstorm-empty brainstorm-error">知识图谱生成失败：${message}</div>`;
     fusion.innerHTML = `<div class="brainstorm-empty brainstorm-error">需求融合失败：${message}</div>`;
     dimensions.innerHTML = `<div class="brainstorm-empty brainstorm-error">分析维度生成失败：${message}</div>`;
     matrix.innerHTML = `<div class="brainstorm-empty brainstorm-error">碰撞矩阵生成失败：${message}</div>`;
     suggestions.innerHTML = `<div class="brainstorm-empty brainstorm-error">建议生成失败：${message}<br>如果刚升级，请关闭旧服务后重新运行 start.bat。</div>`;
-  } finally { button.disabled = false; goalButton.disabled = false; }
+  } finally {
+    if (sequence !== brainstormLoadSequence) return;
+    brainstormController = null;
+    button.disabled = false;
+    goalButton.disabled = false;
+    saveButton.disabled = !state.httpMode || !brainstormLastAnalysis;
+  }
+}
+
+function renderBrainstormHistory(items) {
+  const container = document.getElementById("brainstormHistory");
+  if (!items || !items.length) {
+    container.innerHTML = '<div class="brainstorm-history-empty">保存本轮方案后，会在这里形成决策记录。</div>';
+    return;
+  }
+  container.innerHTML = items.map(item => {
+    const created = item.createdAt && !Number.isNaN(new Date(item.createdAt).getTime())
+      ? new Date(item.createdAt).toLocaleString() : "未知时间";
+    const url = "/api/brainstorm/report?id=" + encodeURIComponent(item.id);
+    return `<a class="brainstorm-history-item" href="${escapeAttr(url)}" title="下载 Markdown 方案">
+      <span><strong>${escapeHtml(item.goal)}</strong><small>${escapeHtml(created)} · ${escapeHtml(item.topPlan || "综合方案")} · ${escapeHtml(item.sourceCount || 0)} 个来源</small></span>
+      <b>下载 Markdown</b>
+    </a>`;
+  }).join("");
+}
+
+async function loadBrainstormHistory() {
+  const container = document.getElementById("brainstormHistory");
+  try {
+    const response = await fetch("/api/brainstorm/history", { cache: "no-store" });
+    const data = await readJsonResponse(response);
+    renderBrainstormHistory(data.items || []);
+  } catch (error) {
+    container.innerHTML = `<div class="brainstorm-history-empty">保存记录读取失败：${escapeHtml(error.message)}</div>`;
+  }
+}
+
+async function saveBrainstormReport() {
+  if (!requireService("保存头脑风暴方案")) return;
+  if (!brainstormLastAnalysis) { toast("请先完成本轮分析", "err"); return; }
+  const button = document.getElementById("brainstormSaveBtn");
+  button.disabled = true;
+  try {
+    const goal = String(brainstormLastAnalysis.fusion && brainstormLastAnalysis.fusion.goal || "").trim().slice(0, 400);
+    const mode = brainstormLastAnalysis.mode || brainstormMode;
+    const response = await fetch("/api/brainstorm/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ goal, mode }),
+    });
+    const data = await readJsonResponse(response);
+    toast("本轮方案已保存为本地 Markdown", "ok");
+    await loadBrainstormHistory();
+  } catch (error) {
+    toast("方案保存失败：" + error.message, "err");
+  } finally {
+    button.disabled = !state.httpMode || !brainstormLastAnalysis;
+  }
 }
 
 function openBrainstorm() {
@@ -1645,6 +1771,7 @@ document.getElementById("brainstormBtn").addEventListener("click", openBrainstor
 document.getElementById("brainstormBridgeBtn").addEventListener("click", openBrainstorm);
 document.getElementById("inspirationNav").addEventListener("click", () => setProductView("inspiration"));
 document.getElementById("brainstormRefreshBtn").addEventListener("click", loadBrainstorm);
+document.getElementById("brainstormSaveBtn").addEventListener("click", saveBrainstormReport);
 try {
   const savedBrainstormGoal = localStorage.getItem("brainstorm_goal");
   if (savedBrainstormGoal) document.getElementById("brainstormGoal").value = savedBrainstormGoal;
@@ -1688,6 +1815,7 @@ document.getElementById("brainstormView").addEventListener("keydown", e => {
 });
 
 async function openTrash() {
+  if (!requireService("查看回收站")) return;
   const modal = document.getElementById("trashModal");
   const list = document.getElementById("trashList");
   modal.classList.add("open");
@@ -1733,6 +1861,7 @@ document.getElementById("trashModal").addEventListener("click", async e => {
 });
 
 async function openDataManager() {
+  if (!requireService("查看数据管理")) return;
   const modal = document.getElementById("dataModal");
   const diagnostics = document.getElementById("diagnostics");
   modal.classList.add("open");
@@ -1754,6 +1883,7 @@ async function openDataManager() {
       `最近备份：${data.latestBackupAt ? new Date(data.latestBackupAt).toLocaleString() : "暂无"}`,
       `数据文件：${data.writable ? "可读写" : "不可写"}`,
       `回收站：${data.trash}`,
+      `已保存头脑风暴：${data.brainstormReports || 0}`,
       `运行环境：${data.node} / ${data.platform}`,
       `企业微信：${data.integrations.wecom ? "已启用" : "未启用"}`,
       `钉钉：${data.integrations.dingtalk ? "已启用" : "未启用"}`,
@@ -1994,6 +2124,7 @@ document.getElementById("timerReset").addEventListener("click", () => {
 });
 document.getElementById("studySave").addEventListener("click", async () => {
   if (!studyItem) return;
+  if (!requireService("保存研究笔记")) return;
   const note = document.getElementById("studyNote").value.trim();
   try {
     const r = await fetch("/api/note", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: studyItem.id, note: note || "（待补充）" }) });
@@ -2103,6 +2234,7 @@ function escapeAttr(s) {
 }
 
 function openEntry(id) {
+  if (!requireService("打开研究档案")) return;
   currentEntryId = String(id);
   // 隐藏看板视图与列表视图，显示详情视图
   document.getElementById("listView").hidden = true;
