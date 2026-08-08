@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="400" viewBox="0 0 1200 400" role="img" aria-labelledby="title desc">
-  <title id="title">灵感来袭 · 本地优先的研究待办看板</title>
-  <desc id="desc">把链接自动解析、分类并保存到本地 DATA.md，再进入研究与笔记流程。</desc>
+  <title id="title">灵感工作台 · 本地优先的灵感收集与头脑风暴工具</title>
+  <desc id="desc">把散落的链接变成可研究的本地项目库，再让不同项目的长处碰撞成新方案。</desc>
 
   <rect x="1" y="1" width="1198" height="398" rx="28" fill="#FAF9F6" stroke="#E7E3DB" stroke-width="2"/>
 
@@ -11,13 +11,13 @@
   </g>
 
   <g id="title-block" transform="translate(58 126)" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif">
-    <text x="0" y="0" fill="#C2410C" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" font-weight="700" letter-spacing="2.6">LOCAL-FIRST · MARKDOWN-POWERED</text>
-    <text x="0" y="82" fill="#221D16" font-size="72" font-weight="780" letter-spacing="-2">灵感来袭</text>
-    <text x="2" y="132" fill="#5D5649" font-size="27" font-weight="500">把散落的链接，变成可研究的本地项目库</text>
+    <text x="0" y="0" fill="#C2410C" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" font-weight="700" letter-spacing="2.6">IDEA OS · LOCAL-FIRST</text>
+    <text x="0" y="82" fill="#221D16" font-size="72" font-weight="780" letter-spacing="-2">灵感工作台</text>
+    <text x="2" y="132" fill="#5D5649" font-size="27" font-weight="500">收集灵感，深入研究，碰撞出可执行的新方案</text>
 
     <g transform="translate(0 174)" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18">
       <rect width="116" height="38" rx="19" fill="#221D16"/>
-      <text x="58" y="25" fill="#FAF9F6" text-anchor="middle">NODE 20+</text>
+      <text x="58" y="25" fill="#FAF9F6" text-anchor="middle">LOCAL MD</text>
       <rect x="128" width="128" height="38" rx="19" fill="#FFFFFF" stroke="#CFC8BB"/>
       <text x="192" y="25" fill="#5D5649" text-anchor="middle">ZERO BUILD</text>
       <rect x="268" width="144" height="38" rx="19" fill="#FFFFFF" stroke="#CFC8BB"/>
@@ -35,30 +35,30 @@
       <rect width="258" height="90" rx="18" fill="#FFFFFF" stroke="#DED8CE"/>
       <rect x="18" y="18" width="48" height="48" rx="12" fill="#F5F3EF"/>
       <path d="M32 48l10-10a8 8 0 0111 11l-7 7a6 6 0 01-8.5 0" fill="none" stroke="#C2410C" stroke-width="2.2" stroke-linecap="round"/>
-      <text x="82" y="39" fill="#221D16" font-size="20" font-weight="700">粘贴一个链接</text>
-      <text x="82" y="64" fill="#857D6F" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16">github.com / video / article</text>
+      <text x="82" y="39" fill="#221D16" font-size="20" font-weight="700">链接 / 真实需求</text>
+      <text x="82" y="64" fill="#857D6F" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16">collect · research</text>
     </g>
 
     <g id="parser" transform="translate(292 34)">
       <rect width="188" height="78" rx="18" fill="#221D16"/>
       <path d="M26 29h28M26 40h20M26 51h34" stroke="#F6B88C" stroke-width="2" stroke-linecap="round"/>
-      <text x="72" y="33" fill="#FAF9F6" font-size="19" font-weight="700">自动解析</text>
-      <text x="72" y="57" fill="#BDB6AC" font-size="16">标题 · 作者 · 分类</text>
+      <text x="72" y="33" fill="#FAF9F6" font-size="19" font-weight="700">解析与关联</text>
+      <text x="72" y="57" fill="#BDB6AC" font-size="16">信息 · 能力 · 依据</text>
     </g>
 
     <g id="markdown-card" transform="translate(128 170)">
       <rect width="350" height="150" rx="22" fill="#FFFFFF" stroke="#DED8CE"/>
       <path d="M22 0v150" stroke="#C2410C" stroke-width="4"/>
-      <text x="46" y="42" fill="#C2410C" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" font-weight="700">DATA.md</text>
-      <text x="46" y="78" fill="#221D16" font-size="23" font-weight="750">进入研究队列</text>
+      <text x="46" y="42" fill="#C2410C" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" font-weight="700">LOCAL PROJECT LIBRARY</text>
+      <text x="46" y="78" fill="#221D16" font-size="23" font-weight="750">灵感来袭 × 头脑风暴</text>
       <rect x="46" y="96" width="76" height="30" rx="15" fill="#FFF1EA"/>
-      <text x="84" y="117" fill="#C2410C" font-size="16" font-weight="700" text-anchor="middle">待研究</text>
+      <text x="84" y="117" fill="#C2410C" font-size="16" font-weight="700" text-anchor="middle">收集研究</text>
       <rect x="132" y="96" width="88" height="30" rx="15" fill="#F2EDFF"/>
-      <text x="176" y="117" fill="#7C3AED" font-size="16" font-weight="700" text-anchor="middle">自动分类</text>
+      <text x="176" y="117" fill="#7C3AED" font-size="16" font-weight="700" text-anchor="middle">知识关联</text>
       <rect x="230" y="96" width="82" height="30" rx="15" fill="#EAF6FF"/>
-      <text x="271" y="117" fill="#0284C7" font-size="16" font-weight="700" text-anchor="middle">研究笔记</text>
+      <text x="271" y="117" fill="#0284C7" font-size="16" font-weight="700" text-anchor="middle">融合方案</text>
     </g>
   </g>
 
-  <text x="1142" y="370" fill="#A39B90" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" text-anchor="end">TODO BOARD / v2.0 BETA</text>
+  <text x="1142" y="370" fill="#A39B90" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" text-anchor="end">TODOBOARD / v2.0 BETA 2</text>
 </svg>
