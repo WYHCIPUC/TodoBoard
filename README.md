@@ -65,12 +65,12 @@
 
 ### Windows 一键启动
 
-1. 打开 [GitHub Releases](https://github.com/WYHCIPUC/TodoBoard/releases)，下载 `linggankanban-2.0.0-windows-x64.exe`。
-2. 双击文件，等待首次准备完成，程序会自动打开浏览器。
+1. 公开下载：打开 [GitHub Releases](https://github.com/WYHCIPUC/TodoBoard/releases)，下载 `linggankanban-2.0.0-windows-portable-x64.zip`，解压后双击 `start-portable.bat`。
+2. 人工购买：收到 `linggankanban-2.0.0-windows-x64.exe` 后直接双击，等待首次准备完成，程序会自动打开浏览器。
 
 运行环境会缓存到 `%LOCALAPPDATA%\LingganKanban\app`，个人数据和备份独立保存在“文档\LingganKanban”。升级或替换 EXE 不会覆盖数据。
 
-> 当前 Windows EXE 尚未购买代码签名证书。请只从本仓库 Release 或卖家提供的可信地址下载，并使用随附的 `SHA256SUMS.txt` 校验完整性。需要免安装压缩包时，可选择 `windows-portable-x64.zip`。
+> 当前 Windows EXE 尚未购买代码签名证书。请只从卖家提供的可信地址获取，并使用 Release 中的 `SHA256SUMS.txt` 校验完整性。两种成品都不要求安装 Node.js。
 
 ### 使用源码
 

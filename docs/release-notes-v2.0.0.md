@@ -4,8 +4,8 @@
 
 ## 下载
 
-- `linggankanban-2.0.0-windows-x64.exe`：推荐，双击即可运行。
-- `linggankanban-2.0.0-windows-portable-x64.zip`：便携目录包。
+- `linggankanban-2.0.0-windows-portable-x64.zip`：GitHub 公开下载，解压后双击 `start-portable.bat`。
+- `linggankanban-2.0.0-windows-x64.exe`：人工购买交付的单文件版，双击即可运行。
 - `linggankanban-2.0.0-windows.zip`：需要自行安装 Node.js 20+ 的源码运行包。
 - `SHA256SUMS.txt`：以上三个文件的 SHA-256 校验值。
 

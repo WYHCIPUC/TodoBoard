@@ -1,6 +1,6 @@
 # Windows 单文件与便携运行时
 
-Windows 10/11 x64 用户优先使用 `linggankanban-2.0.0-windows-x64.exe`：这是可直接双击的单文件程序，不要求安装 Node.js 或手动解压。`windows-portable-x64.zip` 保留给需要查看完整目录或自行管理运行位置的用户。
+Windows 10/11 x64 用户可以从 GitHub Release 下载 `linggankanban-2.0.0-windows-portable-x64.zip`，解压后双击 `start-portable.bat`；人工购买交付的 `linggankanban-2.0.0-windows-x64.exe` 可直接双击。两种成品都不要求安装 Node.js。
 
 ## 构建内容
 
@@ -19,7 +19,7 @@ Windows 10/11 x64 用户优先使用 `linggankanban-2.0.0-windows-x64.exe`：这
 - 用户数据默认写入 `%USERPROFILE%\Documents\LingganKanban`，与程序缓存分离；升级或删除缓存不会删除收藏与研究档案。
 - 已有服务运行时，再次双击只会打开现有看板，不会启动第二个服务。
 - 启动失败会显示可读错误信息，不再依赖命令行窗口。
-- 当前 EXE 未进行商业代码签名，交付时必须同时提供 `SHA256SUMS.txt`，并只使用可信下载地址。
+- 当前 EXE 未进行商业代码签名，人工交付时应同时提供 Release 中的 `SHA256SUMS.txt`，并只使用可信下载地址。
 
 ## 构建
 
