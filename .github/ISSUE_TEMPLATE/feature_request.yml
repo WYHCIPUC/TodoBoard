@@ -26,5 +26,5 @@ body:
     attributes:
       label: 数据边界
       options:
-        - label: 我理解当前 Beta 是本地单机产品，不包含云同步或多人协作。
+        - label: 我理解当前版本是本地单机产品，不包含云同步或多人协作。
           required: true

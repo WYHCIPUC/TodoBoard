@@ -10,6 +10,7 @@ $version = $packageJson.version
 $portableName = "linggankanban-$version-windows-portable-x64"
 $distDir = Join-Path $projectRoot "dist"
 $portableArchive = Join-Path $distDir "$portableName.zip"
+$baseArchive = Join-Path $distDir "linggankanban-$version-windows.zip"
 $executablePath = Join-Path $distDir "linggankanban-$version-windows-x64.exe"
 $checksumPath = Join-Path $distDir "SHA256SUMS.txt"
 $launcherDir = Join-Path $projectRoot "launcher"
@@ -42,10 +43,12 @@ try {
   Copy-Item -LiteralPath $builtExecutable -Destination $executablePath -Force
   $hash = (Get-FileHash -LiteralPath $executablePath -Algorithm SHA256).Hash
   $portableHash = (Get-FileHash -LiteralPath $portableArchive -Algorithm SHA256).Hash
+  $baseHash = (Get-FileHash -LiteralPath $baseArchive -Algorithm SHA256).Hash
   $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
   [IO.File]::WriteAllLines($checksumPath, @(
     "$hash  $([IO.Path]::GetFileName($executablePath))",
-    "$portableHash  $([IO.Path]::GetFileName($portableArchive))"
+    "$portableHash  $([IO.Path]::GetFileName($portableArchive))",
+    "$baseHash  $([IO.Path]::GetFileName($baseArchive))"
   ), $utf8NoBom)
   Write-Host "Single-file executable created: $executablePath"
   Write-Host "SHA-256: $hash"

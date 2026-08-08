@@ -26,6 +26,7 @@ function Copy-ReleaseTree {
     $relative = $_.FullName.Substring($projectRoot.Length + 1)
     $normalized = $relative.Replace([System.IO.Path]::DirectorySeparatorChar, "/")
     if ($normalized -like "docs/entries/*") { return }
+    if ($normalized -like "docs/video/*") { return }
     if ($normalized -like "docs/*.log") { return }
     if ($normalized -eq "docs/fetch-log.md") { return }
     if ($normalized -match "(^|/)\.linggan(/|$)") { return }
