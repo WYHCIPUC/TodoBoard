@@ -34,12 +34,16 @@ for (const marker of [
 }
 
 assert.match(build, /build-portable\.ps1/);
+assert.match(build, /OutputDirectory/);
 assert.match(build, /dotnet publish/);
 assert.match(build, /windows-x64\.exe/);
 assert.match(build, /SHA256SUMS\.txt/);
 assert.match(build, /baseArchive/);
 assert.match(build, /baseHash/);
 assert.match(read("scripts/build-release.ps1"), /docs\/video\/\*/);
+assert.match(read("scripts/build-release.ps1"), /node_modules/);
+assert.match(read("scripts/build-portable.ps1"), /node_modules/);
+assert.match(read("scripts/build-portable.ps1"), /cookies\?/);
 assert.match(smoke, /LINGGAN_NO_OPEN/);
 assert.match(smoke, /Invoke-WebRequest/);
 assert.match(smoke, /Second launch replaced or duplicated/);

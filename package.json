@@ -1,6 +1,6 @@
 {
   "name": "linggankanban",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "description": "灵感来袭：本地优先的链接收集、研究与待办看板",
   "main": "server.js",
@@ -13,6 +13,7 @@
     "build:demo": "node scripts/build-demo.js",
     "test": "node scripts/run-tests.js",
     "test:integration": "node scripts/run-scraper-tests.js",
+    "coverage": "c8 --clean --all --check-coverage --per-file --lines 90 --functions 90 --statements 90 --branches 90 --include=lib/archive.js --include=lib/archive-queue.js --include=lib/scraper/github.js --include=lib/scraper/x.js node -e \"require('./lib/archive.test.js'); require('./lib/archive-queue.test.js'); require('./lib/scraper/github.test.js'); require('./lib/scraper/x.test.js')\"",
     "check": "node --check server.js && node --check board.js && node scripts/run-tests.js"
   },
   "engines": {
@@ -32,5 +33,8 @@
     "dingtalk-stream-sdk-nodejs": "^2.0.4",
     "linkedom": "^0.18.13",
     "turndown": "^7.2.0"
+  },
+  "devDependencies": {
+    "c8": "^10.1.3"
   }
 }

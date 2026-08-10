@@ -1,10 +1,11 @@
-# 2.0.0 稳定版发布检查清单
+# 2.1.0 稳定版发布检查清单
 
 ## 1. 自动化门禁
 
 - [ ] `npm ci` 使用锁文件完成安装。
 - [ ] `npm run doctor` 通过或仅提示当前看板已运行。
 - [ ] `npm run check` 全部通过。
+- [ ] `npm run coverage` 的目标文件行、语句、函数和分支覆盖率均不低于 90%。
 - [ ] `npm run test:integration` 全部通过。
 - [ ] `git diff --check` 无空白错误。
 - [ ] CI 在 Node.js 20 和 22 上通过。
@@ -17,6 +18,8 @@
 - [ ] 验证重复冲突面板可以打开已有条目、合并标签与收藏原因，并在明确选择时保留副本。
 - [ ] 验证删除进入回收站且可以恢复。
 - [ ] 验证未认证 API、超大 JSON/文件和私网抓取请求被拒绝。
+- [ ] 保存测试链接后立即返回条目，归档队列在重启后恢复，并验证四次自动重试与人工补录。
+- [ ] 验证 `X_COOKIE` 不进入队列、归档元数据、备份、日志或发布包。
 - [ ] 发布包中不存在 `DATA.md`、`docs/entries/`、`docs/fetch-log.md`、`.linggan/`、日志、密钥或代理凭据。
 
 ## 3. Windows 验收
@@ -53,18 +56,24 @@ npm run package:exe
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/smoke-executable.ps1
 ```
 
-- [ ] 在干净 Windows 10/11 x64 环境直接双击 `dist/linggankanban-2.0.0-windows-x64.exe`，确认无需安装 Node.js 或解压。
+重复验证时使用新的输出目录，避免覆盖同名稳定版，例如：
+
+```powershell
+npm run package:exe -- -OutputDirectory "$env:TEMP\linggankanban-v2.1.0-release"
+```
+
+- [ ] 在干净 Windows 10/11 x64 环境直接双击 `dist/linggankanban-2.1.0-windows-x64.exe`，确认无需安装 Node.js 或解压。
 - [ ] 验证 EXE 首次启动有进度反馈、二次启动复用缓存，已有服务运行时不会重复启动。
 - [ ] 替换 EXE 后重新启动，确认“文档\LingganKanban”中的条目、档案和备份仍然存在。
 - [ ] 占用默认端口后启动 EXE，确认显示清晰错误；释放端口或设置新端口后可恢复。
-- [ ] 解压 `dist/linggankanban-2.0.0-windows.zip` 并从该目录完成一次验收。
-- [ ] 解压 `dist/linggankanban-2.0.0-windows-portable-x64.zip`，在未安装 Node.js 的环境双击 `start-portable.bat`。
+- [ ] 解压 `dist/linggankanban-2.1.0-windows.zip` 并从该目录完成一次验收。
+- [ ] 解压 `dist/linggankanban-2.1.0-windows-portable-x64.zip`，在未安装 Node.js 的环境双击 `start-portable.bat`。
 - [ ] 便携包内置版本为 Node.js 22.23.2，包含 `NODE-LICENSE.txt` 与 `RUNTIME-NOTICE.txt`。
-- [ ] 计算并发布 SHA-256：`Get-FileHash dist\linggankanban-2.0.0-windows.zip -Algorithm SHA256`。
+- [ ] 计算并发布 SHA-256：`Get-FileHash dist\linggankanban-2.1.0-windows.zip -Algorithm SHA256`。
 - [ ] 同时计算并发布便携包 SHA-256。
 - [ ] 计算并发布单文件 EXE 的 SHA-256，并与 EXE、便携包一起上传到 GitHub Release。
-- [ ] Git 标签与 `package.json` 一致：`v2.0.0`。
-- [ ] GitHub Release 标记为稳定版，并使用 `docs/release-notes-v2.0.0.md` 作为发行说明。
+- [ ] Git 标签与 `package.json` 一致：`v2.1.0`。
+- [ ] GitHub Release 标记为稳定版，并使用 `docs/release-notes-v2.1.0.md` 作为发行说明。
 
 ## 6. 推广前准备
 

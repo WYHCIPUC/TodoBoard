@@ -1,6 +1,6 @@
 # Windows 单文件与便携运行时
 
-Windows 10/11 x64 用户可以从 GitHub Release 下载 `linggankanban-2.0.0-windows-portable-x64.zip`，解压后双击 `start-portable.bat`；人工购买交付的 `linggankanban-2.0.0-windows-x64.exe` 可直接双击。两种成品都不要求安装 Node.js。
+Windows 10/11 x64 用户可以从 GitHub Release 下载 `linggankanban-2.1.0-windows-portable-x64.zip`，解压后双击 `start-portable.bat`；人工购买交付的 `linggankanban-2.1.0-windows-x64.exe` 可直接双击。两种成品都不要求安装 Node.js。
 
 ## 构建内容
 

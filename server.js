@@ -300,6 +300,35 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (p === "/api/archive/status" && req.method === "GET") {
+    const id = (u.searchParams.get("id") || "").trim();
+    if (!id) { sendJson(res, 400, { ok: false, error: "缺少归档任务 id" }); return; }
+    const status = capture.getArchiveStatus(id);
+    if (!status) { sendJson(res, 404, { ok: false, error: "未知归档任务: " + id }); return; }
+    sendJson(res, 200, { ok: true, archive: status, status });
+    return;
+  }
+
+  if (p === "/api/archive/retry" && req.method === "POST") {
+    handleJson(req, res, data => {
+      const id = String(data.id || "").trim();
+      if (!id) throw requestError("缺少归档任务 id", 400);
+      const current = capture.getArchiveStatus(id);
+      if (!current) { sendJson(res, 404, { ok: false, error: "未知归档任务: " + id }); return; }
+      if (current.state === "queued" || current.state === "running") {
+        sendJson(res, 409, { ok: false, error: "归档任务已在处理中", archive: current });
+        return;
+      }
+      try {
+        const archive = capture.retryArchive(id);
+        sendJson(res, 202, { ok: true, archive });
+      } catch (error) {
+        sendJson(res, error.message.includes("正在执行") ? 409 : 400, { ok: false, error: "归档重试失败" });
+      }
+    });
+    return;
+  }
+
   if (p === "/api/merge" && req.method === "POST") {
     handleJson(req, res, async data => {
       const id = String(data.id || "").trim();
@@ -518,11 +547,11 @@ const server = http.createServer((req, res) => {
   /* ===== 研究档案路由 ===== */
 
   /* 读取研究档案(首访自动建空模板) */
-  if (p === "/api/entry") {
+  if (p === "/api/entry" && req.method === "GET") {
     const id = (u.searchParams.get("id") || "").trim();
     try {
       if (!/^\d+\.\d+$/.test(id)) { sendJson(res, 400, { ok: false, error: "无效编号" }); return; }
-      const entry = entries.getEntry(id);
+      const entry = entries.getEntry(id, { archive: capture.archive });
       sendJson(res, 200, { ok: true, entry });
     } catch (e) { sendJson(res, 400, { ok: false, error: e.message }); }
     return;
@@ -596,13 +625,32 @@ const server = http.createServer((req, res) => {
   }
 
   /* 读取已抓正文 */
-  if (p === "/api/entry/content") {
+  if (p === "/api/entry/content" && req.method === "GET") {
     const id = (u.searchParams.get("id") || "").trim();
     try {
       if (!/^\d+\.\d+$/.test(id)) { sendJson(res, 400, { ok: false, error: "无效编号" }); return; }
       const content = entries.getContent(id);
       sendJson(res, 200, { ok: true, content, hasContent: !!content });
     } catch (e) { sendJson(res, 400, { ok: false, error: e.message }); }
+    return;
+  }
+
+  if (p === "/api/entry/content" && req.method === "POST") {
+    handleJson(req, res, async data => {
+      const id = String(data.id || "").trim();
+      const content = String(data.content || data.markdown || "");
+      if (!/^\d+\.\d+$/.test(id)) throw requestError("无效编号", 400);
+      if (!content.trim()) throw requestError("手动归档内容不能为空", 400);
+      if (Buffer.byteLength(content, "utf8") > 20 * 1024 * 1024) {
+        throw requestError("手动归档内容超过 20MB 限制", 413);
+      }
+      try {
+        const archive = await capture.archiveContent(id, content);
+        sendJson(res, 200, { ok: true, id, archive });
+      } catch (error) {
+        sendJson(res, error.statusCode || 400, { ok: false, error: "手动归档失败" });
+      }
+    }, 21 * 1024 * 1024);
     return;
   }
 
@@ -652,16 +700,14 @@ const server = http.createServer((req, res) => {
           }
           try {
             const result = await capture.addUrl(url, { stage: "企业微信" });
-            const reply = result.duplicate
-              ? `ℹ️ 已存在\n${result.id} ${result.title}`
-              : result.warning
-                ? `✅ 已记录（兜底解析）\n${result.id} ${result.title}\n分类：${result.category}\n⚠️ ${result.warning}`
-                : `✅ 已记录\n${result.id} ${result.title}\n分类：${result.category}${result.author ? "\n作者：" + result.author : ""}`;
-            try { await wecom.sendText(fromUser, reply); } catch (_) {}
+            const callbackReply = result.duplicate
+              ? `已保存\n${result.id} ${result.title}`
+              : `已保存\n${result.id} ${result.title}` + (result.archive && result.archive.state === "queued" ? "\n正在归档" : "");
+            try { await wecom.sendText(fromUser, callbackReply); } catch (_) {}
             sendJson(res, 200, result);
           } catch (e) {
-            try { await wecom.sendText(fromUser, "❌ 记录失败：" + e.message); } catch (_) {}
-            sendJson(res, 500, { ok: false, error: String(e) });
+            try { await wecom.sendText(fromUser, "❌ 记录失败，请稍后重试"); } catch (_) {}
+            sendJson(res, 500, { ok: false, error: "记录失败，请稍后重试" });
           }
         })();
       }).catch(error => {
@@ -735,6 +781,7 @@ function shutdown(reason, exitCode) {
   shuttingDown = true;
   if (reason) console.log("\n  正在停止服务：" + reason);
   try { dingtalk.stop(); } catch (error) { recordError("integrationStop", error); }
+  try { capture.stop(); } catch (error) { recordError("archiveStop", error); }
   const forceExit = setTimeout(() => process.exit(exitCode), 3000);
   forceExit.unref();
   if (!server.listening) {
@@ -773,6 +820,7 @@ try {
   console.error("\n  [错误] 数据升级失败，服务未启动。" + e.message);
   process.exit(1);
 }
+try { capture.start(); } catch (e) { recordError("archiveStart", e); }
 
 server.listen(PORT, HOST, () => {
   console.log("");

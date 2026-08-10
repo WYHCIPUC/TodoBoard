@@ -2,7 +2,7 @@
 
 ## 安装与首次启动
 
-1. 下载 `linggankanban-2.0.0-beta.1-windows-portable-x64.zip`。
+1. 下载 `linggankanban-2.1.0-windows-portable-x64.zip`。
 2. 解压到有写权限且便于备份的目录，例如 `D:\Apps\灵感看板`。不要直接在压缩包内运行，也不建议放入 `Program Files`。
 3. 双击 `start-portable.bat`。便携版已经包含 Node.js 运行时和依赖，不需要安装或修改系统环境。
 4. 首次启动会从 `DATA.example.md` 创建 `DATA.md`，浏览器应自动打开 `http://127.0.0.1:3865`。
@@ -22,7 +22,7 @@ npm run doctor
 ## 数据位置与备份
 
 - 主数据：`DATA.md`
-- 研究笔记、正文和截图：`docs\entries\`
+- 研究笔记、正文、截图和主动归档：`docs\entries\`
 - 自动写入备份：与 `DATA.md` 同目录的时间戳备份
 - 迁移、导入前完整备份：`.linggan\migration-backups\`
 - 回收站：`.linggan\trash\`
@@ -38,7 +38,7 @@ npm run doctor
 1. 在旧版本中导出完整备份，并停止旧服务。
 2. 将新版本解压到新目录，不要覆盖旧目录。
 3. 首次启动新版本后，在“数据管理”中导入完整备份。
-4. 确认条目数量、研究笔记、正文和截图无误后，再保留或归档旧目录。
+4. 确认条目数量、研究笔记、正文、截图和链接归档无误后，再保留或归档旧目录。
 
 直接复制旧版 `DATA.md` 与 `docs\entries\` 也受支持。首次启动会在 `.linggan\migration-backups\` 创建完整备份，再迁移到数据格式 v2；迁移失败时服务不会启动，也不会覆盖原始数据。
 

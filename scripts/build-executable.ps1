@@ -1,5 +1,6 @@
 param(
   [string]$NodeVersion = "22.23.2",
+  [string]$OutputDirectory = "",
   [switch]$Force
 )
 
@@ -8,7 +9,7 @@ $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $packageJson = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $projectRoot "package.json") | ConvertFrom-Json
 $version = $packageJson.version
 $portableName = "linggankanban-$version-windows-portable-x64"
-$distDir = Join-Path $projectRoot "dist"
+$distDir = if ($OutputDirectory) { [IO.Path]::GetFullPath($OutputDirectory) } else { Join-Path $projectRoot "dist" }
 $portableArchive = Join-Path $distDir "$portableName.zip"
 $baseArchive = Join-Path $distDir "linggankanban-$version-windows.zip"
 $executablePath = Join-Path $distDir "linggankanban-$version-windows-x64.exe"
@@ -22,7 +23,10 @@ if ((Test-Path -LiteralPath $executablePath) -and -not $Force) {
 }
 
 try {
-  & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "build-portable.ps1") -NodeVersion $NodeVersion -Force
+  & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "build-portable.ps1") `
+    -NodeVersion $NodeVersion `
+    -OutputDirectory $distDir `
+    -Force
   if ($LASTEXITCODE -ne 0) { throw "Portable package build failed." }
   if (-not (Test-Path -LiteralPath $portableArchive)) { throw "Portable archive is missing: $portableArchive" }
 

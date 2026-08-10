@@ -30,7 +30,7 @@
 
 ### 01 · 灵感来袭
 
-粘贴网页、GitHub 仓库或视频链接，自动补全标题、作者、摘要和分类。随后可以在列表或看板中筛选、记录笔记、保存正文，并把真正重要的内容推进到研究流程。
+粘贴网页、GitHub 仓库或视频链接，系统会先保存 URL，再在后台补全标题、作者、摘要和分类，并主动归档可读正文、关键图片与压缩原始页面。随后可以在列表或看板中筛选、记录笔记，并把真正重要的内容推进到研究流程。
 
 <p align="center">
   <img src="./assets/readme/showcase-list.png" width="100%" alt="灵感来袭列表视图，展示统计、分类筛选、研究入口和待研究项目">
@@ -57,6 +57,7 @@
 ## 为什么使用它
 
 - **收集后还能继续生长**：不止保存书签，还能进入正文、笔记、截图、计时和研究状态。
+- **链接失效前主动留档**：保存后立即在本机异步归档主要内容；来源删除或暂时不可访问时，已保存 URL 不会丢失。
 - **建议有来源可追溯**：头脑风暴会说明候选项目贡献、关联信号与验证路径，不只给出几个泛泛结论。
 - **数据始终属于你**：条目保存在可直接阅读、编辑和备份的 `DATA.md`，不依赖云端账号或专有数据库。
 - **开始成本低**：普通用户下载 Windows 单文件即可运行；开发者可以直接使用 Node.js 源码。
@@ -65,8 +66,8 @@
 
 ### Windows 一键启动
 
-1. 公开下载：打开 [GitHub Releases](https://github.com/WYHCIPUC/TodoBoard/releases)，下载 `linggankanban-2.0.0-windows-portable-x64.zip`，解压后双击 `start-portable.bat`。
-2. 人工购买：收到 `linggankanban-2.0.0-windows-x64.exe` 后直接双击，等待首次准备完成，程序会自动打开浏览器。
+1. 公开下载：打开 [GitHub Releases](https://github.com/WYHCIPUC/TodoBoard/releases)，下载 `linggankanban-2.1.0-windows-portable-x64.zip`，解压后双击 `start-portable.bat`。
+2. 人工购买：收到 `linggankanban-2.1.0-windows-x64.exe` 后直接双击，等待首次准备完成，程序会自动打开浏览器。
 
 运行环境会缓存到 `%LOCALAPPDATA%\LingganKanban\app`，个人数据和备份独立保存在“文档\LingganKanban”。升级或替换 EXE 不会覆盖数据。
 
@@ -90,6 +91,7 @@ npm start
 | 能力 | 解决的问题 |
 | --- | --- |
 | 粘贴即解析 | 自动提取标题、作者、摘要、封面并给出分类建议 |
+| 主动本地归档 | 保存后异步备份正文、元数据、关键图片和不超过 20 MB 的压缩原始 HTML |
 | 列表 / 看板双视图 | 搜索、排序并按分类、状态筛选研究事项 |
 | 完整研究档案 | 保存正文、独立笔记、截图、计时和进度 |
 | 需求驱动头脑风暴 | 从真实问题出发，提取项目长处，形成融合方案与 MVP |
@@ -105,13 +107,15 @@ npm start
 | GitHub 仓库 | README、作者、主要语言与 Star 数 |
 | Bilibili 视频 | 标题、UP 主、封面与可用字幕 |
 | 微信公众号 / 通用网页 | Open Graph、JSON-LD 与正文 |
-| X、YouTube、知乎等站点 | 代理抓取；失败时从 URL 降级识别并保留链接 |
+| X / Twitter | 专用状态链接解析，可选使用仅存在于进程环境变量中的 `X_COOKIE`；失败时保留链接并支持人工补录 |
+| YouTube、知乎等站点 | 通用页面解析；失败时从 URL 降级识别并保留链接 |
 
 ## 本地优先与安全
 
 - 服务默认只监听 `127.0.0.1`，不应直接暴露到不受信任网络。
 - 数据 API 需要本机会话 Cookie 或 `LINGGAN_API_TOKEN`。
 - 抓取失败时仍会保存链接和可识别信息，避免灵感丢失。
+- 归档任务保存在本地队列，服务重启后继续处理；自动重试耗尽时可以手动重试或粘贴正文。
 - 旧版本升级前会先备份 `DATA.md` 和研究档案；迁移失败不会覆盖源数据。
 - 不要提交 `DATA.md`、自动备份、代理凭据或隧道密钥。
 
@@ -121,6 +125,7 @@ npm start
 
 - [Windows 使用指南](docs/WINDOWS-GUIDE.md) — 安装、升级、改端口、故障排查与卸载
 - [企业微信接入指南](docs/WECOM-GUIDE.md) — 转发链接远程入库
+- [可靠链接归档说明](docs/plans/reliable-link-archive.md) — 主动备份、重试状态、X Cookie 与发布边界
 - [钉钉接入指南](docs/DINGTALK-GUIDE.md) — Stream 模式，零域名零公网
 - [更新日志](CHANGELOG.md) — 版本变化
 - [贡献指南](CONTRIBUTING.md) — 开发流程与提交规范
@@ -138,6 +143,7 @@ npm start
 | `README_FILE` | `./DATA.md` | 数据文件路径 |
 | `NO_OPEN` | — | 设为 `1` 时不自动打开浏览器 |
 | `PROXY_URL` | — | 显式代理地址 |
+| `X_COOKIE` | — | 可选，仅向 `x.com` / `twitter.com` 请求发送；不要写入脚本、日志或仓库 |
 | `ALLOW_PRIVATE_NETWORK` | — | 设为 `1` 允许抓取内网地址，不推荐 |
 | `API_RATE_LIMIT` | `300` | 单客户端每分钟数据 API 请求上限 |
 | `EXPENSIVE_RATE_LIMIT` | `30` | 单客户端每分钟抓取类请求上限 |

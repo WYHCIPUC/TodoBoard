@@ -15,6 +15,67 @@ const CATS = [
   { name: "收件箱", cls: "c-inbox" },
 ];
 
+/* 归档状态是服务端持久化状态；保持这组文案与 API 合同一一对应。 */
+const ARCHIVE_STATUS_META = Object.freeze({
+  queued: { label: "排队中", tone: "queued", description: "等待归档处理" },
+  running: { label: "归档中", tone: "running", description: "正在生成归档产物" },
+  partial: { label: "部分完成", tone: "partial", description: "部分产物已保存" },
+  succeeded: { label: "已归档", tone: "succeeded", description: "归档产物已完成" },
+  failed: { label: "归档失败", tone: "failed", description: "可手动重试" },
+  manual_required: { label: "需要手动补录", tone: "manual", description: "请提供 Markdown 或纯文本" },
+});
+const ARCHIVE_RETRY_STATES = new Set(["partial", "failed", "manual_required"]);
+
+function normalizeArchiveStatus(raw) {
+  const value = raw && typeof raw === "object" ? raw : {};
+  const state = Object.prototype.hasOwnProperty.call(ARCHIVE_STATUS_META, value.state)
+    ? value.state : "queued";
+  return {
+    id: String(value.id || ""),
+    state,
+    attempt: Number.isFinite(Number(value.attempt)) ? Number(value.attempt) : 0,
+    nextRunAt: value.nextRunAt || value.nextRetryAt || null,
+    lastError: value.lastError || value.error || null,
+    degradationReasons: Array.isArray(value.degradationReasons) ? value.degradationReasons : [],
+  };
+}
+
+function archiveCanRetry(state) { return ARCHIVE_RETRY_STATES.has(state); }
+
+function archiveTimeLabel(value) {
+  if (!value) return "未安排";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "未安排";
+  return date.toLocaleString("zh-CN", {
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
+function archiveErrorLabel(value) {
+  return String(value || "").replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 240);
+}
+
+function archiveRetryRequest(id) {
+  return {
+    url: "/api/archive/retry",
+    options: { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: String(id) }) },
+  };
+}
+
+function manualContentRequest(id, content) {
+  return {
+    url: "/api/entry/content",
+    options: { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: String(id), content }) },
+  };
+}
+
+function archiveResponseState(previous, response) {
+  const current = normalizeArchiveStatus(previous);
+  if (!response || response.ok === false) return { archive: current, recovered: true };
+  return { archive: normalizeArchiveStatus(response.archive || { id: current.id, state: "queued" }), recovered: true };
+}
+
 /* 8 分类专属 SVG 图标（极简线条，统一 14×14 描边色 currentColor） */
 const CAT_ICONS = {
   "AI 工具": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="7" width="14" height="11" rx="2.5"/><circle cx="9" cy="12.5" r="1.2"/><circle cx="15" cy="12.5" r="1.2"/><path d="M9 7V4.5 M15 7V4.5 M12 18v3 M9 21h6"/></svg>',
@@ -149,6 +210,7 @@ function parseMarkdown(text) {
         status: STATUS[head[1]].key, statusSym: head[1], id: head[2],
         name: head[3].trim(), category: cat, catNo,
         fields: [], desc: "", url: null, image: null, difficulty: 0, tags: [],
+        archive: normalizeArchiveStatus({ id: head[2] }),
       };
       items.push(cur);
       continue;
@@ -201,6 +263,38 @@ function filtered() {
 
 function statusLabel(item) { return STATUS[item.statusSym].label; }
 function statusCls(item) { return "st-" + item.status; }
+function archiveStatus(item) { return normalizeArchiveStatus(item.archive); }
+function archiveStatusHtml(item, compact) {
+  const archive = archiveStatus(item);
+  const meta = ARCHIVE_STATUS_META[archive.state];
+  const error = archiveErrorLabel(archive.lastError);
+  const next = archive.nextRunAt ? `下次重试：${archiveTimeLabel(archive.nextRunAt)}` : "暂无下次重试时间";
+  const detail = `${error ? `最近错误：${error}` : meta.description} · ${next}`;
+  return `<span class="archive-badge archive-${meta.tone}" role="status" aria-label="归档状态：${escapeAttr(meta.label)}">${escapeHtml(meta.label)}</span>` +
+    (compact ? "" : `<span class="archive-detail" title="${escapeAttr(detail)}">${escapeHtml(detail)}</span>`);
+}
+function archiveControlsHtml(item) {
+  const archive = archiveStatus(item);
+  const retry = archiveCanRetry(archive.state)
+    ? `<button type="button" class="archive-action archive-retry" data-archive-action="retry" data-id="${escapeAttr(item.id)}">重试归档</button>` : "";
+  const manual = archive.state === "manual_required"
+    ? `<button type="button" class="archive-action" data-archive-action="manual" data-id="${escapeAttr(item.id)}">补录内容</button>` : "";
+  return retry + manual;
+}
+function archivePanelHtml(item) {
+  const archive = archiveStatus(item);
+  const meta = ARCHIVE_STATUS_META[archive.state];
+  const error = archiveErrorLabel(archive.lastError);
+  const reason = archive.degradationReasons.map(archiveErrorLabel).filter(Boolean).join("；");
+  return `<section class="archive-panel archive-${meta.tone}" aria-label="归档状态详情">
+    <div class="archive-panel-head"><div>${archiveStatusHtml(item)}</div><span class="archive-attempt">第 ${archive.attempt} 次尝试</span></div>
+    <p class="archive-panel-copy">${escapeHtml(meta.description)} · 下次重试：${escapeHtml(archiveTimeLabel(archive.nextRunAt))}</p>
+    ${error ? `<p class="archive-error">最近错误：${escapeHtml(error)}</p>` : ""}
+    ${reason ? `<p class="archive-reason">处理说明：${escapeHtml(reason)}</p>` : ""}
+    <p class="archive-raw-note">原始 HTML 超过 20 MB 时仅跳过 raw.html.gz，其余归档产物仍会保留。</p>
+    <div class="archive-controls" data-id="${escapeAttr(item.id)}">${archiveControlsHtml(item)}</div>
+  </section>`;
+}
 function diffBadge(item) {
   return item.difficulty ? `<span class="badge diff">${"★".repeat(item.difficulty)}</span>` : "";
 }
@@ -229,11 +323,12 @@ function rowHtml(item) {
     ${thumbHtml(item)}
     <span class="name"><span class="txt" title="${escapeAttr(item.name)}">${inline(item.name)}</span></span><span class="cat-slot">${catBadge(item)}</span><span class="difficulty">${diffBadge(item)}</span>
     <span class="src"><a href="${escapeAttr(item.url || "#")}" target="${item.url ? "_blank" : "_self"}" rel="noopener" title="${escapeAttr(item.url || "")}">${escapeHtml(src)}</a></span>
-    <span class="status ${statusCls(item)}">${statusLabel(item)}</span>
+    <span class="status ${statusCls(item)}">${statusLabel(item)}<span class="archive-inline">${archiveStatusHtml(item, true)}</span></span>
     <span class="chev"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
   </div>
   <div class="detail-panel" id="detail-${item.id}" data-for="${item.id}" aria-hidden="true" inert><div class="dp-inner"><div class="dp-body">
     ${detailRows(item)}
+    ${archivePanelHtml(item)}
     <div class="dp-actions" data-id="${item.id}">
       <button type="button" class="dp-act" data-act="study" title="研究档案：笔记 / 抓取正文 / 计时">🔬 研究</button>
       <button type="button" class="dp-act" data-act="open" title="在新标签打开原文"${item.url ? "" : " disabled"}>↗ 原文</button>
@@ -318,9 +413,11 @@ function cardHtml(item) {
     ${coverHtml(item)}
     <div class="body">
       <div class="nm">${inline(item.name)}</div>
-      <div class="bdg">${catBadge(item)}${diffBadge(item)}</div>
+      <div class="bdg">${catBadge(item)}${diffBadge(item)}${archiveStatusHtml(item, true)}</div>
+      <div class="archive-card-meta">${archiveStatusHtml(item)}</div>
       ${item.desc ? `<div class="ds">${inline(item.desc)}</div>` : ""}
       <div class="detail"><div class="di"><div class="di-in">${detailRows(item)}</div></div></div>
+      <div class="archive-controls" data-id="${escapeAttr(item.id)}">${archiveControlsHtml(item)}</div>
       <div class="ft">
         <span class="sr"><a href="${escapeAttr(item.url || "#")}" target="${item.url ? "_blank" : "_self"}" rel="noopener" title="${escapeAttr(item.url || "")}">${escapeHtml(src)}</a></span>
         <span class="more">详情</span>
@@ -596,6 +693,7 @@ async function httpLoad() {
     state.dataName = d.name || "数据文件";
     setServiceState("online");
     applyText(d.content, d.name, "服务模式");
+    loadArchiveStatuses(state.items);
     setTimeout(maybeShowOnboarding, 180);
     const now = Date.now();
     await idbSet("backup", "readme", { name: d.name, content: d.content, time: now });
@@ -616,6 +714,23 @@ async function httpLoad() {
   } finally {
     if (sequence === httpLoadSequence) httpLoadController = null;
   }
+}
+
+let archiveLoadSequence = 0;
+async function loadArchiveStatuses(items) {
+  if (!state.httpMode || !items.length) return;
+  const sequence = ++archiveLoadSequence;
+  await Promise.all(items.map(async item => {
+    try {
+      const response = await fetch("/api/archive/status?id=" + encodeURIComponent(item.id), { cache: "no-store" });
+      const data = await readJsonResponse(response);
+      if (data.archive || data.status) item.archive = normalizeArchiveStatus(data.archive || data.status);
+    } catch (_) {
+      // 保留服务端不可达前的状态；首次加载则使用持久化契约的 queued 默认值。
+      item.archive = normalizeArchiveStatus(item.archive);
+    }
+  }));
+  if (sequence === archiveLoadSequence) render();
 }
 
 async function demoLoad() {
@@ -688,6 +803,78 @@ async function readJsonResponse(response) {
   catch (_) { throw new Error(response.ok ? "服务响应格式异常" : `HTTP ${response.status}`); }
   if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
   return data;
+}
+
+async function retryArchive(id, button) {
+  if (button && button.disabled) return false;
+  if (!requireService("重试归档")) return false;
+  if (button) { button.disabled = true; button.setAttribute("aria-busy", "true"); }
+  try {
+    const request = archiveRetryRequest(id);
+    const data = await readJsonResponse(await fetch(request.url, request.options));
+    const item = state.items.find(entry => entry.id === String(id));
+    if (item) item.archive = archiveResponseState(item.archive, data).archive;
+    render();
+    if (currentEntryId === String(id)) renderEntryArchive(item ? item.archive : data.archive);
+    toast("归档已重新排队", "ok");
+    return true;
+  } catch (error) {
+    toast("归档重试失败：" + error.message, "err");
+    return false;
+  } finally {
+    if (button) { button.disabled = false; button.removeAttribute("aria-busy"); }
+  }
+}
+
+async function submitManualContent(id, textarea, button) {
+  const content = textarea.value.trim();
+  if (!content) { toast("请先填写 Markdown 或纯文本", "err"); textarea.focus(); return false; }
+  if (!requireService("提交手动归档")) return false;
+  if (button) { button.disabled = true; button.setAttribute("aria-busy", "true"); }
+  textarea.disabled = true;
+  try {
+    const request = manualContentRequest(id, content);
+    const data = await readJsonResponse(await fetch(request.url, request.options));
+    const item = state.items.find(entry => entry.id === String(id));
+    if (item) item.archive = archiveResponseState(item.archive, data).archive;
+    textarea.value = "";
+    render();
+    if (currentEntryId === String(id)) {
+      renderEntryArchive(item ? item.archive : data.archive);
+      loadContentPreview(id);
+    }
+    toast("内容已保存，归档正在处理", "ok");
+    return true;
+  } catch (error) {
+    toast("手动归档失败：" + error.message, "err");
+    return false;
+  } finally {
+    textarea.disabled = false;
+    if (button) { button.disabled = false; button.removeAttribute("aria-busy"); }
+  }
+}
+
+function handleArchiveControlClick(event) {
+  const button = event.target.closest("[data-archive-action]");
+  if (!button) return false;
+  event.preventDefault();
+  event.stopPropagation();
+  const id = button.dataset.id;
+  if (button.dataset.archiveAction === "retry") retryArchive(id, button);
+  else if (button.dataset.archiveAction === "manual") openEntry(id);
+  return true;
+}
+
+function renderEntryArchive(archive) {
+  const host = document.getElementById("entryArchive");
+  if (!host || !currentEntryId) return;
+  const item = { id: currentEntryId, archive: normalizeArchiveStatus(archive) };
+  host.innerHTML = archivePanelHtml(item) + (item.archive.state === "manual_required" ? `
+    <form class="manual-archive-form" id="manualArchiveForm" data-id="${escapeAttr(currentEntryId)}">
+      <label for="manualArchiveContent">手动补录内容</label>
+      <textarea id="manualArchiveContent" rows="8" placeholder="粘贴 Markdown 或纯文本内容"></textarea>
+      <div class="manual-archive-actions"><span>服务端会再次校验内容大小；原始 HTML 归档上限为 20 MB。</span><button type="submit" class="btn primary">保存并重试归档</button></div>
+    </form>` : "");
 }
 
 /* ============================================================
@@ -838,6 +1025,7 @@ function toggleRow(row) {
   }
 }
 document.getElementById("listView").addEventListener("click", e => {
+  if (handleArchiveControlClick(e)) return;
   // 详情面板内的操作按钮优先处理
   const actBtn = e.target.closest(".dp-act");
   if (actBtn) {
@@ -886,6 +1074,7 @@ async function copyLink(url) {
   catch (_) { toast("复制失败，请手动复制", "err"); }
 }
 document.getElementById("boardView").addEventListener("click", e => {
+  if (handleArchiveControlClick(e)) return;
   const card = e.target.closest(".card");
   if (!card || e.target.closest("a")) return;
   card.classList.toggle("open");
@@ -2328,6 +2517,9 @@ function openEntry(id) {
       form.keep.value = f.keep || "否";
       form.recommendLevel.value = String(f.recommendLevel || 1);
       form.keepNote.value = f.keepNote || "";
+      const listItem = state.items.find(item => item.id === currentEntryId);
+      if (listItem && entry.archive) listItem.archive = normalizeArchiveStatus(entry.archive);
+      renderEntryArchive(entry.archive);
       renderSsGrid(currentEntryId, entry.screenshots || []);
       loadContentPreview(currentEntryId);
     })
@@ -2399,6 +2591,16 @@ document.addEventListener("DOMContentLoaded", () => {
   if (entryCancel) entryCancel.addEventListener("click", closeEntry);
   const entryTemplate = document.getElementById("entryTemplate");
   if (entryTemplate) entryTemplate.addEventListener("change", e => applyEntryTemplate(e.target.value));
+  const entryArchive = document.getElementById("entryArchive");
+  if (entryArchive) {
+    entryArchive.addEventListener("click", handleArchiveControlClick);
+    entryArchive.addEventListener("submit", e => {
+      const form = e.target.closest("#manualArchiveForm");
+      if (!form) return;
+      e.preventDefault();
+      submitManualContent(form.dataset.id, form.querySelector("textarea"), form.querySelector("button[type=submit]"));
+    });
+  }
 
   // 抓取正文
   const scrapeBtn = document.getElementById("scrapeBtn");

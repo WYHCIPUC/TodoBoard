@@ -600,6 +600,50 @@
   .badge.cat .cat-icon svg { display: block; }
   .badge.diff { font-family: var(--mono); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 30%, transparent); background: var(--accent-soft); }
 
+  /* 归档状态：颜色只是辅助，徽章始终带有完整文字。 */
+  .archive-badge {
+    display: inline-flex; align-items: center; width: fit-content; max-width: 100%;
+    padding: 2px 8px; border: 1px solid currentColor; border-radius: 999px;
+    font-size: 11px; font-weight: 700; line-height: 1.35; white-space: nowrap;
+  }
+  .archive-queued { color: var(--text-2); background: color-mix(in srgb, var(--text-2) 10%, transparent); }
+  .archive-running { color: var(--doing); background: color-mix(in srgb, var(--doing) 12%, transparent); }
+  .archive-partial { color: #d99a2b; background: color-mix(in srgb, #d99a2b 13%, transparent); }
+  .archive-succeeded { color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); }
+  .archive-failed { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
+  .archive-manual { color: #c47ad8; background: color-mix(in srgb, #c47ad8 13%, transparent); }
+  .archive-inline { display: inline-flex; margin-left: 7px; vertical-align: middle; }
+  .archive-detail { display: block; margin-top: 4px; color: var(--text-3); font-size: 11px; font-weight: 400; line-height: 1.5; }
+  .status .archive-inline .archive-badge { font-size: 10px; }
+  .archive-panel {
+    display: grid; gap: 7px; padding: 12px 14px; border: 1px solid var(--border);
+    border-left: 3px solid currentColor; border-radius: var(--radius); background: var(--surface-2);
+  }
+  .archive-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .archive-panel-head > div { min-width: 0; }
+  .archive-attempt, .archive-panel-copy, .archive-error, .archive-reason, .archive-raw-note { margin: 0; color: var(--text-2); font-size: 12px; line-height: 1.55; }
+  .archive-attempt { color: var(--text-3); font-family: var(--mono); }
+  .archive-error { color: var(--danger); overflow-wrap: anywhere; }
+  .archive-reason { color: var(--text-2); overflow-wrap: anywhere; }
+  .archive-raw-note { color: var(--text-3); }
+  .archive-controls { display: flex; flex-wrap: wrap; gap: 7px; }
+  .archive-action { padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-2); cursor: pointer; font: inherit; font-size: 12px; }
+  .archive-action:hover:not(:disabled), .archive-action:focus-visible { color: var(--accent); border-color: var(--accent); }
+  .archive-action:disabled { opacity: 0.5; cursor: wait; }
+  .archive-card-meta { min-height: 28px; }
+  .archive-card-meta .archive-detail { margin-top: 5px; }
+  .manual-archive-form { display: grid; gap: 8px; padding: 14px; border: 1px dashed color-mix(in srgb, var(--accent) 50%, var(--border)); border-radius: var(--radius); background: var(--surface); }
+  .manual-archive-form label { color: var(--text); font-weight: 700; font-size: 13px; }
+  .manual-archive-form textarea { width: 100%; min-height: 150px; box-sizing: border-box; resize: vertical; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font: 13px/1.6 var(--mono); }
+  .manual-archive-form textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .manual-archive-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; color: var(--text-3); font-size: 11px; line-height: 1.5; }
+  @media (max-width: 560px) {
+    .archive-panel-head { align-items: flex-start; flex-direction: column; gap: 4px; }
+    .manual-archive-actions { align-items: stretch; flex-direction: column; }
+    .manual-archive-actions .btn { width: 100%; }
+    .archive-detail { white-space: normal; }
+  }
+
   .status { font-size: 13px; font-weight: 600; text-align: right; white-space: nowrap; }
   .st-pending { color: var(--accent); }
   .st-doing { color: var(--doing); }
@@ -884,6 +928,7 @@
     .row .id, .row .thumb, .row .difficulty, .row .cat-slot { display: none; }
     /* 极窄下标题不再强制完整显示：单行+省略号，避免挤压 status 列导致重叠 */
     .row .name .txt { overflow: hidden; text-overflow: ellipsis; }
+    .row .archive-inline { display: none; }
   }
 
   @media (max-width: 420px) {
