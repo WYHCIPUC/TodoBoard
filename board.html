@@ -54,6 +54,10 @@
         <button type="button" data-view="list" class="active" aria-pressed="true">列表</button>
         <button type="button" data-view="board" aria-pressed="false">看板</button>
       </div>
+      <button type="button" class="btn command-btn" id="commandBtn" title="快捷指令（Ctrl+K）" aria-label="打开快捷指令" aria-haspopup="dialog" aria-controls="commandModal">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M4 12h16M4 17h8"/><path d="m17 5 3 2-3 2"/></svg>
+        <kbd>Ctrl K</kbd>
+      </button>
       <div class="theme-wrap">
         <button type="button" class="btn theme-btn" id="themeBtn" title="切换主题" aria-label="切换主题" aria-haspopup="menu" aria-controls="themePanel" aria-expanded="false">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3 M12 19v3 M2 12h3 M19 12h3 M4.9 4.9l2.1 2.1 M17 17l2.1 2.1 M19.1 4.9L17 7 M7 17l-2.1 2.1"/></svg>
@@ -88,6 +92,7 @@
             <button type="button" role="menuitem" data-target="statsBtn">统计洞察</button>
             <button type="button" role="menuitem" data-target="trashBtn">回收站</button>
             <button type="button" role="menuitem" data-target="dataBtn">数据管理</button>
+            <button type="button" role="menuitem" data-target="commandBtn">快捷指令</button>
             <button type="button" role="menuitem" data-target="helpBtn">使用帮助</button>
           </div>
         </div>
@@ -361,11 +366,27 @@
         <div class="hk"><kbd>E</kbd><span>沉浸研究当前行</span></div>
         <div class="hk"><kbd>S</kbd><span>统计洞察</span></div>
         <div class="hk"><kbd>B</kbd><span>头脑风暴</span></div>
+        <div class="hk"><kbd>Ctrl</kbd> <kbd>K</kbd><span>打开快捷指令</span></div>
         <div class="hk"><kbd>/</kbd><span>聚焦搜索框</span></div>
         <div class="hk"><kbd>双击</kbd> 分类 chip<span>折叠 / 展开该分类</span></div>
         <div class="hk"><kbd>Esc</kbd><span>关闭任意模态</span></div>
         <div class="hk"><kbd>?</kbd><span>打开 / 关闭此面板</span></div>
       </div>
+    </div>
+  </div>
+  <div class="modal-overlay command-overlay" id="commandModal" role="dialog" aria-modal="true" aria-labelledby="commandTitle">
+    <div class="modal command-modal">
+      <div class="command-heading">
+        <div><div class="command-kicker">QUICK ACTIONS</div><div class="m-title" id="commandTitle">快捷指令</div></div>
+        <button type="button" class="modal-x" aria-label="关闭">×</button>
+      </div>
+      <label class="command-search" for="commandInput">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+        <input type="text" id="commandInput" role="combobox" autocomplete="off" placeholder="搜索操作，例如“新增”“看板”“数据”" aria-controls="commandList" aria-autocomplete="list" aria-expanded="false">
+        <kbd>Esc</kbd>
+      </label>
+      <div class="command-list" id="commandList" role="listbox" aria-label="可用指令"></div>
+      <div class="command-foot"><span><kbd>↑</kbd><kbd>↓</kbd> 选择</span><span><kbd>Enter</kbd> 执行</span><span>所有操作都在本机完成</span></div>
     </div>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>

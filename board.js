@@ -604,6 +604,7 @@ function render() {
   reconcilePicked(list.map(item => item.id));
   syncPicked();
   updateSortHead();
+  refreshMotionVisibility();
     if (visibleView) visibleView.classList.remove("view-fade");
   };
   requestAnimationFrame(doRender);
@@ -1478,7 +1479,7 @@ document.addEventListener("keydown", e => {
 
 /* 所有弹窗共用焦点闭环、背景锁定与触发点恢复。 */
 const dialogFocusState = { active: null, opener: null };
-const dialogBackground = [...document.querySelectorAll(".demo-banner, .topbar, .statsbar, .main, footer, .bulkbar")];
+const dialogBackground = [...document.querySelectorAll(".demo-banner, .topbar, .trust-rail, .statsbar, .main, footer, .bulkbar")];
 function dialogFocusable(dialog) {
   return [...dialog.querySelectorAll('button:not(:disabled), input:not([type="hidden"]):not(:disabled), textarea:not(:disabled), select:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])')]
     .filter(element => !element.hidden && element.getClientRects().length > 0);
@@ -1491,7 +1492,8 @@ function syncDialogFocus() {
     dialogBackground.forEach(element => { if (!open.contains(element)) element.inert = true; });
     document.body.classList.add("dialog-open");
     requestAnimationFrame(() => {
-      const preferred = open.querySelector("[autofocus], #fetchUrl, .modal-x") || dialogFocusable(open)[0];
+      const preferred = open.querySelector("[autofocus]") ||
+        open.querySelector("#fetchUrl, #commandInput") || open.querySelector(".modal-x") || dialogFocusable(open)[0];
       if (preferred) preferred.focus({ preventScroll: true });
     });
     return;
@@ -1518,25 +1520,78 @@ document.addEventListener("keydown", e => {
   else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
 });
 
-/* 卡片封面鼠标视差 */
-const boardEl = document.getElementById("boardView");
+/* 动效生命周期：页面隐藏或区块离屏时暂停，避免长期后台占用。 */
 const prefersReduce = () => window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-boardEl.addEventListener("mousemove", e => {
-  if (prefersReduce()) return;
+let motionObserver = null;
+function refreshMotionVisibility() {
+  if (!motionObserver || prefersReduce()) return;
+  document.querySelectorAll(".topbar, #banner, #daily, #toolrow, #emptyState, #listView, #boardView, #brainstormView").forEach(element => {
+    if (element.dataset.motionObserved) return;
+    element.dataset.motionObserved = "true";
+    element.classList.add("motion-surface");
+    motionObserver.observe(element);
+  });
+}
+function restartSurfaceMotion(element) {
+  if (!element || prefersReduce()) return;
+  element.classList.remove("product-view-enter");
+  void element.offsetWidth;
+  element.classList.add("product-view-enter");
+}
+if ("IntersectionObserver" in window) {
+  motionObserver = new IntersectionObserver(entries => {
+    entries.forEach(entry => entry.target.classList.toggle("is-motion-offscreen", !entry.isIntersecting));
+  }, { threshold: 0.01 });
+}
+function syncDocumentMotion() {
+  document.documentElement.classList.toggle("motion-paused", document.hidden);
+}
+document.addEventListener("visibilitychange", syncDocumentMotion);
+syncDocumentMotion();
+refreshMotionVisibility();
+
+/* 卡片封面鼠标视差：逐卡复位、单帧合并，并在页面隐藏时清理。 */
+const boardEl = document.getElementById("boardView");
+let parallaxFrame = null;
+let parallaxCard = null;
+let parallaxPoint = null;
+function resetCardParallax(card = parallaxCard) {
+  if (parallaxFrame) cancelAnimationFrame(parallaxFrame);
+  parallaxFrame = null;
+  parallaxPoint = null;
+  const image = card && card.querySelector(".cover img");
+  if (image) {
+    image.style.removeProperty("transition");
+    image.style.removeProperty("transform");
+  }
+  if (!card || card === parallaxCard) parallaxCard = null;
+}
+boardEl.addEventListener("pointermove", e => {
+  if (prefersReduce() || e.pointerType === "touch") return;
   const card = e.target.closest(".card");
   if (!card) return;
-  const img = card.querySelector(".cover img");
-  if (!img) return;
-  const r = card.getBoundingClientRect();
-  const x = (e.clientX - r.left) / r.width - 0.5;
-  const y = (e.clientY - r.top) / r.height - 0.5;
-  img.style.transition = "transform 0.1s linear";
-  img.style.transform = `scale(1.08) translate(${(x * 14).toFixed(1)}px, ${(y * 10).toFixed(1)}px)`;
+  if (parallaxCard && parallaxCard !== card) resetCardParallax(parallaxCard);
+  parallaxCard = card;
+  parallaxPoint = { x: e.clientX, y: e.clientY };
+  if (parallaxFrame) return;
+  parallaxFrame = requestAnimationFrame(() => {
+    parallaxFrame = null;
+    if (!parallaxCard || !parallaxPoint || document.hidden) return;
+    const image = parallaxCard.querySelector(".cover img");
+    if (!image) return;
+    const rect = parallaxCard.getBoundingClientRect();
+    const x = (parallaxPoint.x - rect.left) / rect.width - 0.5;
+    const y = (parallaxPoint.y - rect.top) / rect.height - 0.5;
+    image.style.transition = "transform 90ms linear";
+    image.style.transform = `scale(1.075) translate(${(x * 12).toFixed(1)}px, ${(y * 8).toFixed(1)}px)`;
+  });
 });
-boardEl.addEventListener("mouseleave", e => {
-  const img = e.target.querySelector ? e.target.querySelector(".cover img") : null;
-  if (img) { img.style.transition = ""; img.style.transform = ""; }
+boardEl.addEventListener("pointerout", e => {
+  const card = e.target.closest(".card");
+  if (card && !card.contains(e.relatedTarget)) resetCardParallax(card);
 });
+boardEl.addEventListener("pointerleave", () => resetCardParallax());
+document.addEventListener("visibilitychange", () => { if (document.hidden) resetCardParallax(); });
 
 /* ============================================================
  * 新增模态
@@ -2044,6 +2099,7 @@ function setProductView(view, options) {
     loadBrainstorm();
     loadBrainstormHistory();
   }
+  restartSurfaceMotion(active ? document.getElementById("brainstormView") : document.getElementById("banner"));
   if (active) window.scrollTo({ top: 0, behavior: options.instant ? "auto" : "smooth" });
 }
 
@@ -2818,6 +2874,94 @@ document.getElementById("studyContinue").addEventListener("click", () => {
   document.getElementById("studyNote").focus({ preventScroll: true });
 });
 
+/* - 快捷指令：把高频入口统一到可搜索、可键盘操作的本地面板。 - */
+const COMMANDS = [
+  { id: "capture", glyph: "+", title: "新增灵感", hint: "粘贴链接并自动抓取", keywords: "新增 收藏 链接 capture", shortcut: "N", run: () => document.getElementById("addBtn").click() },
+  { id: "search", glyph: "⌕", title: "搜索项目", hint: "定位标题、简介和归档正文", keywords: "搜索 查找 search", shortcut: "/", run: () => document.getElementById("searchInput").focus() },
+  { id: "inspiration", glyph: "01", title: "进入灵感来袭", hint: "返回收集与研究工作台", keywords: "首页 灵感 列表", run: () => setProductView("inspiration") },
+  { id: "brainstorm", glyph: "02", title: "进入头脑风暴", hint: "关联现有项目并形成方案", keywords: "头脑风暴 关联 决策", shortcut: "B", run: openBrainstorm },
+  { id: "list", glyph: "≡", title: "切换为列表", hint: "高密度浏览与批量处理", keywords: "列表 list 视图", run: () => document.querySelector('[data-view="list"]').click() },
+  { id: "board", glyph: "▦", title: "切换为看板", hint: "卡片化浏览项目", keywords: "看板 卡片 board 视图", run: () => document.querySelector('[data-view="board"]').click() },
+  { id: "random", glyph: "↝", title: "随机抽取研究", hint: "从待研究项目中选择下一项", keywords: "随机 推荐 下一步", shortcut: "R", run: () => document.getElementById("rollBtn").click() },
+  { id: "stats", glyph: "%", title: "查看统计洞察", hint: "检查分类、难度和推进状态", keywords: "统计 数据 洞察", shortcut: "S", run: openStats },
+  { id: "recovery", glyph: "R", title: "查看数据保护状态", hint: "核对写入、恢复和升级结果", keywords: "恢复 数据健康 保护 备份", run: () => document.getElementById("trustCenterBtn").click() },
+  { id: "data", glyph: "D", title: "打开数据管理", hint: "备份、恢复、导入和诊断", keywords: "数据 备份 导入 诊断", run: () => document.getElementById("dataBtn").click() },
+  { id: "trash", glyph: "⌫", title: "打开回收站", hint: "恢复误删的条目和档案", keywords: "回收站 删除 恢复", run: () => document.getElementById("trashBtn").click() },
+  { id: "theme", glyph: "◐", title: "选择界面主题", hint: "切换暖白、暗色、极光或森林", keywords: "主题 外观 深色 theme", run: () => document.getElementById("themeBtn").click() },
+  { id: "keys", glyph: "?", title: "查看键盘快捷键", hint: "了解完整的无鼠标操作", keywords: "帮助 快捷键 keyboard", shortcut: "?", run: () => document.getElementById("hotkeyModal").classList.add("open") },
+];
+let commandMatches = COMMANDS;
+let commandActiveIndex = 0;
+function commandQuery(value) {
+  return String(value || "").trim().toLocaleLowerCase("zh-CN");
+}
+function renderCommandPalette(reset = false) {
+  const input = document.getElementById("commandInput");
+  const list = document.getElementById("commandList");
+  const query = commandQuery(input.value);
+  commandMatches = COMMANDS.filter(command => commandQuery(`${command.title} ${command.hint} ${command.keywords}`).includes(query));
+  if (reset) commandActiveIndex = 0;
+  commandActiveIndex = Math.max(0, Math.min(commandActiveIndex, Math.max(0, commandMatches.length - 1)));
+  if (!commandMatches.length) {
+    list.innerHTML = '<div class="command-empty">没有匹配操作。试试“新增”“数据”或“看板”。</div>';
+    input.removeAttribute("aria-activedescendant");
+    return;
+  }
+  list.innerHTML = commandMatches.map((command, index) => `<button type="button" id="command-option-${command.id}" class="command-option${index === commandActiveIndex ? " active" : ""}" role="option" aria-selected="${index === commandActiveIndex}" data-command="${command.id}">
+    <span class="command-glyph" aria-hidden="true">${escapeHtml(command.glyph)}</span><span class="command-copy"><strong>${escapeHtml(command.title)}</strong><small>${escapeHtml(command.hint)}</small></span>${command.shortcut ? `<kbd>${escapeHtml(command.shortcut)}</kbd>` : ""}
+  </button>`).join("");
+  input.setAttribute("aria-activedescendant", `command-option-${commandMatches[commandActiveIndex].id}`);
+}
+function setCommandActive(index) {
+  if (!commandMatches.length) return;
+  commandActiveIndex = (index + commandMatches.length) % commandMatches.length;
+  renderCommandPalette();
+  document.getElementById(`command-option-${commandMatches[commandActiveIndex].id}`)?.scrollIntoView({ block: "nearest" });
+}
+function closeCommandPalette() {
+  document.getElementById("commandModal").classList.remove("open");
+  document.getElementById("commandInput").setAttribute("aria-expanded", "false");
+}
+function openCommandPalette() {
+  const modal = document.getElementById("commandModal");
+  const otherDialog = document.querySelector(".modal-overlay.open, .study-overlay.open");
+  if (otherDialog && otherDialog !== modal) return;
+  closeHeaderMenus(true);
+  document.getElementById("commandInput").value = "";
+  document.getElementById("commandInput").setAttribute("aria-expanded", "true");
+  renderCommandPalette(true);
+  modal.classList.add("open");
+  requestAnimationFrame(() => document.getElementById("commandInput").focus({ preventScroll: true }));
+}
+function runCommand(id) {
+  const command = COMMANDS.find(item => item.id === id);
+  if (!command) return;
+  dialogFocusState.opener = null;
+  closeCommandPalette();
+  requestAnimationFrame(() => command.run());
+}
+document.getElementById("commandBtn").addEventListener("click", openCommandPalette);
+document.getElementById("commandInput").addEventListener("input", () => renderCommandPalette(true));
+document.getElementById("commandInput").addEventListener("keydown", e => {
+  if (e.key === "ArrowDown") { e.preventDefault(); setCommandActive(commandActiveIndex + 1); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); setCommandActive(commandActiveIndex - 1); }
+  else if (e.key === "Enter" && commandMatches.length) { e.preventDefault(); runCommand(commandMatches[commandActiveIndex].id); }
+  else if (e.key === "Escape") { e.preventDefault(); closeCommandPalette(); }
+});
+document.getElementById("commandList").addEventListener("mousemove", e => {
+  const option = e.target.closest("[data-command]");
+  if (!option) return;
+  const index = commandMatches.findIndex(command => command.id === option.dataset.command);
+  if (index >= 0 && index !== commandActiveIndex) setCommandActive(index);
+});
+document.getElementById("commandList").addEventListener("click", e => {
+  const option = e.target.closest("[data-command]");
+  if (option) runCommand(option.dataset.command);
+});
+document.getElementById("commandModal").addEventListener("click", e => {
+  if (e.target === e.currentTarget) closeCommandPalette();
+});
+
 /* - 快捷键 - */
 function kbdRow() {
   const rows = [...document.querySelectorAll("#listView .row")];
@@ -2840,6 +2984,12 @@ function isEditableTarget(target) {
 }
 document.addEventListener("keydown", e => {
   const openDialog = document.querySelector(".modal-overlay.open, .study-overlay.open");
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+    e.preventDefault();
+    if (openDialog && openDialog.id === "commandModal") closeCommandPalette();
+    else if (!openDialog) openCommandPalette();
+    return;
+  }
   if (isEditableTarget(e.target)) return;
   // ? 键打开快捷键面板（不区分大小写 + shift）
   if ((e.key === "?" || (e.shiftKey && e.key === "/")) && (!openDialog || openDialog.id === "hotkeyModal")) {

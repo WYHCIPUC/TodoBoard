@@ -2345,3 +2345,83 @@
     .trust-rail, .trust-rail *, .recovery-modal, .recovery-modal * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
   }
 
+  /* ===== 专业交互层：快捷指令、视图过渡与可见性动效门控 ===== */
+  .command-btn {
+    flex: 0 0 auto; min-height: 38px; gap: 8px; padding: 0 10px;
+    color: var(--text-2); background: color-mix(in srgb, var(--surface) 88%, transparent);
+  }
+  .command-btn:hover, .command-btn:focus-visible { color: var(--text); border-color: var(--border-strong); background: var(--surface); }
+  .command-btn kbd, .command-foot kbd, .command-search > kbd, .command-option > kbd {
+    display: inline-grid; min-width: 24px; min-height: 22px; place-items: center; padding: 2px 6px;
+    border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: 6px;
+    color: var(--text-3); background: var(--surface-2); font: 650 9px var(--mono); letter-spacing: 0.02em;
+  }
+  .command-overlay.open { animation: commandBackdropIn 180ms ease both; }
+  .command-modal {
+    position: relative; width: min(640px, calc(100vw - 28px)); max-width: 640px; max-height: min(680px, calc(100vh - 28px));
+    overflow: hidden; padding: 18px; border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
+    background: color-mix(in srgb, var(--surface) 96%, transparent); box-shadow: 0 28px 90px rgba(12, 10, 8, 0.24);
+  }
+  .command-overlay.open .command-modal { animation: commandPanelIn 280ms var(--ease) both; }
+  .command-overlay.open .command-modal > * { animation: none; }
+  .command-modal::before {
+    content: ""; position: absolute; inset: -120px -80px auto auto; width: 310px; height: 240px; pointer-events: none;
+    background: radial-gradient(circle, color-mix(in srgb, var(--accent) 13%, transparent), transparent 68%);
+  }
+  .command-heading { position: relative; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 2px 2px 13px; }
+  .command-heading .modal-x { position: static; flex: 0 0 auto; }
+  .command-kicker { margin-bottom: 3px; color: var(--accent); font: 700 9px var(--mono); letter-spacing: 0.16em; }
+  .modal .command-search {
+    position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px;
+    min-height: 48px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: 12px;
+    color: var(--text-3); background: var(--bg); transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  }
+  .command-search:focus-within { border-color: color-mix(in srgb, var(--accent) 62%, var(--border)); background: var(--surface); box-shadow: 0 0 0 4px var(--accent-soft); }
+  .modal .command-search input[type="text"] { width: 100%; min-height: 44px; padding: 0; border: 0; border-radius: 0; outline: 0; color: var(--text); background: transparent; box-shadow: none; font: 14px var(--font); }
+  .modal .command-search input::placeholder { color: var(--text-3); }
+  .command-list { display: grid; gap: 5px; max-height: min(440px, calc(100vh - 230px)); margin: 12px -4px 0; padding: 0 4px; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+  .command-option {
+    position: relative; display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 11px;
+    width: 100%; min-height: 56px; padding: 8px 11px; border: 1px solid transparent; border-radius: 12px;
+    color: var(--text); background: transparent; text-align: left; cursor: pointer;
+    transition: transform 160ms var(--ease), border-color 160ms ease, background 160ms ease, box-shadow 160ms var(--ease);
+  }
+  .command-option:hover, .command-option.active {
+    transform: translateX(3px); border-color: color-mix(in srgb, var(--accent) 26%, var(--border));
+    background: linear-gradient(90deg, var(--accent-soft), color-mix(in srgb, var(--surface-2) 72%, transparent));
+    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent) 72%, transparent);
+  }
+  .command-glyph { display: grid; width: 36px; aspect-ratio: 1; place-items: center; border: 1px solid var(--border); border-radius: 10px; color: var(--accent); background: var(--surface); font: 750 11px var(--mono); transition: transform 180ms var(--ease), border-color 180ms ease; }
+  .command-option.active .command-glyph, .command-option:hover .command-glyph { transform: rotate(-3deg) scale(1.04); border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+  .command-copy { min-width: 0; display: grid; gap: 2px; }
+  .command-copy strong { overflow: hidden; font-size: 13.5px; text-overflow: ellipsis; white-space: nowrap; }
+  .command-copy small { overflow: hidden; color: var(--text-3); font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
+  .command-empty { padding: 34px 16px; color: var(--text-3); text-align: center; font-size: 13px; }
+  .command-foot { display: flex; align-items: center; gap: 14px; margin: 12px -18px -18px; padding: 11px 18px; border-top: 1px solid var(--border); color: var(--text-3); background: var(--surface-2); font-size: 10.5px; }
+  .command-foot span { display: flex; align-items: center; gap: 4px; }
+  .command-foot span:last-child { margin-left: auto; }
+
+  .product-view-enter { animation: productViewEnter 360ms var(--ease) both; }
+  .motion-surface.is-motion-offscreen, .motion-surface.is-motion-offscreen *,
+  .motion-paused *, .motion-paused *::before, .motion-paused *::after,
+  .modal-overlay:not(.open) *, .study-overlay:not(.open) *,
+  [hidden], [hidden]::before, [hidden]::after, [hidden] * { animation-play-state: paused !important; }
+  .btn:active:not(:disabled), .chip:active, .product-nav-item:active, .row-disclosure:active, .card-disclosure:active { transform: translateY(1px) scale(0.975); }
+
+  @keyframes commandBackdropIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes commandPanelIn { from { opacity: 0; transform: translateY(-12px) scale(0.975); } to { opacity: 1; transform: none; } }
+  @keyframes productViewEnter { from { opacity: 0; transform: translateY(9px); filter: saturate(0.85); } to { opacity: 1; transform: none; filter: none; } }
+
+  @media (max-width: 1180px) { .command-btn kbd { display: none; } }
+  @media (max-width: 768px) { .command-btn { order: 4; width: 38px; padding: 0; justify-content: center; } }
+  @media (max-width: 560px) {
+    .command-btn { display: none; }
+    .command-modal { padding: 14px; border-radius: 18px; }
+    .command-list { max-height: calc(100vh - 210px); }
+    .command-foot { margin: 10px -14px -14px; padding: 10px 14px; }
+    .command-foot span:last-child { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .command-overlay, .command-modal, .command-option, .command-glyph, .product-view-enter { animation: none !important; transition: none !important; transform: none !important; }
+  }
+
