@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>灵感工作台 v2.2 Styleframes</title>
+  <style>
+    :root{--paper:#f6f0e7;--paper2:#fffaf3;--ink:#292621;--muted:#786f64;--accent:#c86f43;--green:#52755f;--line:#ded3c4}
+    *{box-sizing:border-box}body{margin:0;background:#171614;font-family:Inter,"Microsoft YaHei",sans-serif;color:var(--ink)}
+    .frame{position:relative;width:1920px;height:1080px;overflow:hidden;margin:0 0 40px;background:radial-gradient(circle at 50% 38%,var(--paper2),var(--paper) 65%);isolation:isolate}
+    .frame:after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.25;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.88' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.16'/%3E%3C/svg%3E")}
+    .kicker{font:600 18px/1.2 ui-monospace,monospace;letter-spacing:.24em;color:var(--accent)}
+    .hero{font:600 138px/1.02 Georgia,"Noto Serif SC",serif;letter-spacing:-.045em;margin:30px 0 24px}.sub{font-size:30px;color:var(--muted);letter-spacing:.04em}
+    .brand{position:absolute;left:180px;top:260px}.cross{position:absolute;left:105px;top:164px;width:72px;height:72px}.cross:before,.cross:after{content:"";position:absolute;background:var(--accent)}.cross:before{left:35px;width:2px;height:72px}.cross:after{top:35px;width:72px;height:2px}
+    .ui{position:absolute;left:130px;right:130px;top:118px;bottom:118px;border:1px solid var(--line);border-radius:32px;background:rgba(255,252,247,.92);box-shadow:0 35px 100px rgba(55,40,25,.14);padding:40px}
+    .rail{height:64px;border-radius:18px;background:#f0e7dc;border:1px solid #ded0c0;display:flex;align-items:center;padding:0 24px;gap:16px}.dot{width:12px;height:12px;border-radius:50%;background:var(--green);box-shadow:0 0 0 7px rgba(82,117,95,.12)}
+    .toolbar{display:flex;gap:16px;margin:30px 0}.search{height:58px;flex:1;border:1px solid var(--line);border-radius:17px;background:white;display:flex;align-items:center;padding:0 22px;color:#887e73}.pill{height:58px;padding:0 24px;border-radius:17px;background:var(--ink);color:#fff;display:flex;align-items:center}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}.card{height:210px;border:1px solid var(--line);border-radius:22px;background:#fffdfa;padding:26px;box-shadow:0 12px 30px rgba(40,30,20,.06)}.card b{font:600 29px Georgia,serif}.card p{font-size:18px;line-height:1.55;color:var(--muted)}.tag{display:inline-block;margin-top:18px;color:var(--accent);font:600 14px ui-monospace,monospace;letter-spacing:.12em}
+    .caption{position:absolute;left:170px;bottom:80px;padding:18px 24px;border-radius:14px;background:var(--ink);color:white;font-size:24px;box-shadow:0 20px 45px rgba(0,0,0,.18)}
+    .brain{background:linear-gradient(145deg,#251f1a,#151311);color:#fff}.brain .kicker{position:absolute;left:150px;top:120px}.prompt{position:absolute;left:460px;top:112px;width:1000px;height:82px;border:2px solid #d6b199;border-radius:41px;padding:23px 35px;font-size:27px;background:#2d2722}.node{position:absolute;width:320px;height:120px;border-radius:20px;background:#f6f0e7;color:var(--ink);padding:26px;box-shadow:0 22px 60px rgba(0,0,0,.28)}.node b{font:600 25px Georgia,serif}.node small{display:block;margin-top:13px;color:var(--muted)}.root{left:800px;top:290px;background:var(--accent);color:#fff}.n1{left:390px;top:585px}.n2{left:800px;top:585px}.n3{left:1210px;top:585px}.line{position:absolute;height:2px;background:#b98568;transform-origin:left center}.l1{left:960px;top:410px;width:440px;transform:rotate(137deg)}.l2{left:960px;top:410px;width:235px;transform:rotate(90deg)}.l3{left:960px;top:410px;width:440px;transform:rotate(43deg)}
+    .version{position:absolute;right:150px;bottom:105px;text-align:right}.version strong{font:600 96px Georgia,serif}.version span{display:block;font:600 18px ui-monospace,monospace;letter-spacing:.18em;color:#c9b6a8}
+  </style>
+</head>
+<body>
+  <section class="frame" id="sf-brand"><div class="cross"></div><div class="brand"><div class="kicker">LOCAL-FIRST IDEA OS</div><div class="hero">灵感工作台</div><div class="sub">收藏不失效，思考有下文。</div></div></section>
+  <section class="frame" id="sf-library"><div class="ui"><div class="rail"><i class="dot"></i><strong>本地数据状态正常</strong><span style="color:var(--muted)">写入、归档与恢复均已完成验证</span></div><div class="toolbar"><div class="search">搜索标题、简介或关键词</div><div class="pill">＋ 收下链接</div></div><div class="grid"><article class="card"><b>网页正文提取</b><p>保存链接时自动提取主要内容，即使原页面失效也能继续阅读。</p><span class="tag">LOCAL ARCHIVE</span></article><article class="card"><b>GitHub 项目研究</b><p>README、元数据与关键结论统一进入本地研究档案。</p><span class="tag">VERIFIED</span></article><article class="card"><b>灵感之间的关系</b><p>从多个收藏中提炼互补能力，生成可以执行的融合方案。</p><span class="tag">BRAINSTORM</span></article></div></div><div class="caption">链接入库，即刻主动备份</div></section>
+  <section class="frame brain" id="sf-brain"><div class="kicker">02 · 关联与决策</div><div class="prompt">把本地收藏整理成一条可执行的产品路线</div><div class="line l1"></div><div class="line l2"></div><div class="line l3"></div><div class="node root"><b>推荐融合方案</b><small>从已有项目长处生成</small></div><div class="node n1"><b>可靠采集</b><small>链接入库与主动备份</small></div><div class="node n2"><b>本地研究</b><small>档案、搜索与恢复</small></div><div class="node n3"><b>持续决策</b><small>关系、机会与路线</small></div><div class="version"><strong>v2.2</strong><span>DESKTOP · LOCAL DATA</span></div></section>
+</body>
+</html>

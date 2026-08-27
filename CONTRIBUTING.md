@@ -33,6 +33,10 @@ npm run check      # 语法检查 + 全部测试
 └─ docs/plans/         # 需求/设计文档（改功能前先写文档）
 ```
 
+## 决策原则
+
+产品、架构或数据格式改动先阅读 [`docs/PROJECT-PRINCIPLES.md`](docs/PROJECT-PRINCIPLES.md)。提案需要说明它改善哪一段核心工作流，以及数据、网络、失败降级、恢复和测试边界。发生冲突时，数据完整性与安全优先于便利和功能数量。
+
 ## 提交规范
 
 提交信息使用 `类型(范围): 描述` 格式：
@@ -44,10 +48,11 @@ npm run check      # 语法检查 + 全部测试
 
 ## 工作流程
 
-1. 新功能先更新 `docs/plans/` 下的设计/计划文档（本项目是文档驱动）
-2. 写代码 + 测试（`lib/*.test.js`，无框架，`node lib/xxx.test.js` 即可跑）
-3. `npm test` 全绿后提交
-4. 不修改 `DATA.md`（用户数据，已 gitignore）和 `docs/entries/`
+1. 用项目原则检查需求；不符合原则的例外必须记录原因和退出路径
+2. 新功能先更新 `docs/plans/` 下的设计/计划文档（本项目是文档驱动）
+3. 写代码 + 测试（`lib/*.test.js`，无框架，`node lib/xxx.test.js` 即可跑）
+4. `npm test` 全绿后提交
+5. 不修改 `DATA.md`（用户数据，已 gitignore）和 `docs/entries/`
 
 ## 行为准则
 

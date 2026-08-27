@@ -5,6 +5,8 @@
 **目标版本**：2.0.0-beta.1<br>
 **需求质量评分**：94/100
 
+> **状态说明（2026-08-14）**：这是 2.0 公开 Beta 阶段的历史 PRD，多数基础能力已在 2.1.0 中实现；其中成功率、性能和首次使用时间仍是待持续验证的目标，不代表当前实测结果。当前长期决策依据见 [`PROJECT-PRINCIPLES.md`](PROJECT-PRINCIPLES.md)，现状与补强顺序见 [`plans/2026-08-14-principles-gap-analysis.md`](plans/2026-08-14-principles-gap-analysis.md)。
+
 ---
 
 ## 1. 执行摘要

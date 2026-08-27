@@ -1,85 +1,41 @@
-# 2.1.0 稳定版发布检查清单
+# v2.2.0 发布检查清单
 
-## 1. 自动化门禁
+本清单 fail-closed。任何本地门禁失败、证据变化或远端规则不明都停止发布；不得 force-push、绕过保护或使用旧产物替代。`DATA.md`、备份、凭据、旧包、视频和无关未跟踪文件始终不在发布范围。
 
-- [ ] `npm ci` 使用锁文件完成安装。
-- [ ] `npm run doctor` 通过或仅提示当前看板已运行。
-- [ ] `npm run check` 全部通过。
-- [ ] `npm run coverage` 的目标文件行、语句、函数和分支覆盖率均不低于 90%。
-- [ ] `npm run test:integration` 全部通过。
-- [ ] `git diff --check` 无空白错误。
-- [ ] CI 在 Node.js 20 和 22 上通过。
+## 1. 本地候选门禁
 
-## 2. 数据与安全
-
-- [ ] 使用 v1 样本演练迁移，确认 `.linggan/migration-backups/` 生成且源数据未丢失。
-- [ ] 演练完整导出与恢复，核对条目、笔记、正文和截图数量。
-- [ ] 验证重复 URL 不会创建第二条记录。
-- [ ] 验证重复冲突面板可以打开已有条目、合并标签与收藏原因，并在明确选择时保留副本。
-- [ ] 验证删除进入回收站且可以恢复。
-- [ ] 验证未认证 API、超大 JSON/文件和私网抓取请求被拒绝。
-- [ ] 保存测试链接后立即返回条目，归档队列在重启后恢复，并验证四次自动重试与人工补录。
-- [ ] 验证 `X_COOKIE` 不进入队列、归档元数据、备份、日志或发布包。
-- [ ] 发布包中不存在 `DATA.md`、`docs/entries/`、`docs/fetch-log.md`、`.linggan/`、日志、密钥或代理凭据。
-
-## 3. Windows 验收
-
-- [ ] 在干净 Windows 10 环境安装 Node.js 20 LTS，解压发布包并双击 `start.bat`。
-- [ ] 在干净 Windows 11 环境重复上述流程。
-- [ ] 验证首次依赖安装、自动打开浏览器、停止后重启和已运行时再次双击。
-- [ ] 用其他程序占用 3865，确认启动器给出清晰错误；换端口后可以启动。
-- [ ] 验证中文路径、带空格路径和普通用户写权限场景。
-- [ ] 按 `docs/WINDOWS-GUIDE.md` 完成升级和卸载演练。
-
-## 4. 浏览器主流程
-
-- [ ] 空数据首次收藏。
-- [ ] 预览并保存链接，填写标签与收藏原因。
-- [ ] 切换五种研究模板并保存研究结论。
-- [ ] 全文搜索命中元数据、笔记和正文。
-- [ ] 删除、回收站查看与恢复。
-- [ ] 完整备份导出、导入预检摘要、恢复前确认和诊断信息展示。
-- [ ] 导入包含文件夹、有效、重复和非法链接的浏览器书签 HTML，确认目录转换为标签、预检数量正确且只写入一次。
-- [ ] 清除浏览器中的 `linggan_onboarding_v2_seen` 后刷新，确认首次引导可展示、关闭并通过帮助入口重开。
-- [ ] 在数据管理中确认健康状态、读写权限、最近备份和异常问题摘要均正确。
-- [ ] 在 390px 视口确认无横向溢出、首条内容无需经过超长头图区，并可横向浏览统计与分类。
-- [ ] 搜索后使用清除按钮和 Esc 恢复全部结果；用 Tab + Enter 展开条目，折叠时详情按钮不可获得焦点。
-- [ ] 仅 1/14 条完成时完成进度应为 7%，点击每日推荐“开始研究”后状态应变为进行中。
-- [ ] 在常见桌面宽度及 390px 窄屏检查布局。
-
-## 5. 构建发布包
+- [ ] 捕获 `git status --short`、HEAD 和 T5 自有文件外部快照；确认未暂存、未提交。
+- [ ] Node.js 22 与 24 分别执行 `npm ci`、`npm run check`、`npm run coverage`、`npm run test:scrapers:fixtures`、`npm run test:e2e`、`npm run test:launcher`。
+- [ ] `npm run coverage` 对冻结高风险文件的 statements、branches、functions、lines 逐文件均不低于 90%，不接受聚合豁免。
+- [ ] 执行 T5 测试：
 
 ```powershell
-npm run package:windows
-npm run package:portable
-npm run package:exe
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/smoke-executable.ps1
+npm test -- --test scripts/build-release.test.js --test scripts/build-portable.test.js --test scripts/build-executable.test.js --test scripts/smoke-executable.test.js --test scripts/recovery-drill.test.js --test scripts/release-drill.test.js
 ```
 
-重复验证时使用新的输出目录，避免覆盖同名稳定版，例如：
+- [ ] 执行 `scripts/recovery-drill.ps1`，覆盖中断写入、锁竞争/owner 崩溃、歧义停止、升级/回滚、验证失败、确认恢复和幂等重跑；仅使用一次性数据。
+- [ ] 在两个全新输出目录运行 `scripts/build-executable.ps1`，然后用 `scripts/release-drill.ps1 -ComparisonDirectory` 证明全部资产逐字节一致。
+- [ ] 对同一 EXE 执行 `scripts/smoke-executable.ps1`；确认离线启动、HTTP 读写、健康检查、二次启动复用和仓库 `DATA.md` 未变化。
+- [ ] fresh extraction 的源码包精确匹配 `scripts/release-allowlist.txt`，便携包清单和 Node.js 24.16.0 运行时哈希匹配 `scripts/runtime-node.json`。
+- [ ] `SHA256SUMS.txt` 名称大小写完全一致，列出且验证两个 manifest、源码 ZIP、便携 ZIP 和 EXE，不包含自身。
+- [ ] 显式扫描包、候选 Git 树与拟上传清单：无用户数据、备份、`.env`、Cookie/token/平台 secret、隧道配置、旧包、视频或未列文件。
 
-```powershell
-npm run package:exe -- -OutputDirectory "$env:TEMP\linggankanban-v2.1.0-release"
-```
+## 2. Windows 与恢复人工复核
 
-- [ ] 在干净 Windows 10/11 x64 环境直接双击 `dist/linggankanban-2.1.0-windows-x64.exe`，确认无需安装 Node.js 或解压。
-- [ ] 验证 EXE 首次启动有进度反馈、二次启动复用缓存，已有服务运行时不会重复启动。
-- [ ] 替换 EXE 后重新启动，确认“文档\LingganKanban”中的条目、档案和备份仍然存在。
-- [ ] 占用默认端口后启动 EXE，确认显示清晰错误；释放端口或设置新端口后可恢复。
-- [ ] 解压 `dist/linggankanban-2.1.0-windows.zip` 并从该目录完成一次验收。
-- [ ] 解压 `dist/linggankanban-2.1.0-windows-portable-x64.zip`，在未安装 Node.js 的环境双击 `start-portable.bat`。
-- [ ] 便携包内置版本为 Node.js 22.23.2，包含 `NODE-LICENSE.txt` 与 `RUNTIME-NOTICE.txt`。
-- [ ] 计算并发布 SHA-256：`Get-FileHash dist\linggankanban-2.1.0-windows.zip -Algorithm SHA256`。
-- [ ] 同时计算并发布便携包 SHA-256。
-- [ ] 计算并发布单文件 EXE 的 SHA-256，并与 EXE、便携包一起上传到 GitHub Release。
-- [ ] Git 标签与 `package.json` 一致：`v2.1.0`。
-- [ ] GitHub Release 标记为稳定版，并使用 `docs/release-notes-v2.1.0.md` 作为发行说明。
+- [ ] Windows 10/11 x64 全新用户分别验证单文件 EXE 与便携 ZIP，无需系统 Node.js。
+- [ ] 中文/空格路径、普通用户权限、端口占用、活动锁、旧实例仍可能运行、无 Edge 回退均给出可操作诊断。
+- [ ] v2.1 数据副本升级到 v2.2；核对 `DATA.md`、条目 UID、笔记、正文、截图和归档证据。
+- [ ] 核对 `.linggan/migration-backups/` 与 `.linggan/upgrade-snapshots/`；回滚只对显式副本/快照执行，绝不以仓库 `DATA.md` 作夹具。
+- [ ] 断网时本地浏览、搜索、备份、恢复预检仍可用；抓取失败保留已保存 URL 和现有内容。
 
-## 6. 推广前准备
+## 3. 远端门禁（本地准备阶段保持 Pending）
 
-- [ ] README 使用真实仓库地址、界面截图和明确的稳定版下载入口。
-- [ ] 配置 Bug、功能建议和数据恢复三类 Issue 模板。
-- [ ] 按 `docs/BETA-USER-TEST.md` 完成目标用户首次使用测试。
-- [ ] 发布已知限制：Windows 优先、本地单机、无云同步/多人协作、外部网页解析受网络影响。
-- [ ] 准备 5 分钟首次使用测试脚本，至少邀请 5 名目标用户试用。
-- [ ] 记录激活率、首次收藏耗时、解析成功率和数据恢复问题；不默认开启遥测。
+- [ ] `gh auth login` 后，`gh auth status` 对预期 host/account 成功且权限足够。
+- [ ] 用 `gh repo view --json nameWithOwner,defaultBranchRef` 记录精确仓库与默认分支。
+- [ ] 用 rulesets、branch protection 和 tag protection API 记录所需 review、checks、签名、线性历史、部署和 tag 限制。
+- [ ] 确认候选 commit 满足规则，远端 `v2.2.0` tag 和 Release 均不存在。
+- [ ] 审查 `git diff --cached --name-status`、精确 tag target、五个资产和 `SHA256SUMS.txt`；取得最终人工批准。
+- [ ] 仅在以上全部保持绿色后，按可观察的独立步骤 push commit、等待远端 checks、创建 tag、创建 draft Release、上传并回读资产、最后公开。
+- [ ] 若 tag 后失败，按仓库批准的补偿流程删除未公开 Release、删除本次 tag 并 GET ref 确认 404；补偿失败标记 `release_recovery_required` 并停止自动重试。
+
+当前本地任务禁止认证、push、tag、Release、stage 和 commit，因此本节必须原样保持 Pending。

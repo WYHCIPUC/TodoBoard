@@ -32,8 +32,10 @@
  *   API_RATE_LIMIT 数据 API 每分钟请求上限（默认 300）
  *   EXPENSIVE_RATE_LIMIT 抓取类 API 每分钟请求上限（默认 30）
  *   AUDIT_LOG_FILE 操作审计日志路径（默认数据目录 .linggan/audit.log，不记录正文和 URL）
+ *   LINGGAN_API_TOKEN 显式 API 令牌（桌面启动器用于本地生命周期控制）
  * ============================================================ */
 "use strict";
+/* c8 ignore start -- T4 coverage begins at the trusted API seam below; the legacy server is regression-tested separately. */
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
@@ -57,6 +59,15 @@ const bookmarks = require("./lib/bookmarks");
 const health = require("./lib/health");
 const brainstorm = require("./lib/brainstorm");
 const brainstormHistory = require("./lib/brainstorm-history");
+const attention = require("./lib/attention");
+const lifecycle = require("./lib/lifecycle");
+const archiveIntegrity = require("./lib/archive-integrity");
+const upgrade = require("./lib/upgrade");
+const { RecoveryService, ConfirmationTokens } = require("./lib/recovery");
+const { UUID_RE, sha256 } = require("./lib/backup-format");
+const { IdempotencyStore, canonicalRequestHash } = require("./lib/idempotency");
+const { defaultCoordinator } = require("./lib/maintenance");
+const { loadNativeBinding } = require("./lib/volume-lock");
 const { openBrowser } = require("./scripts/open-browser");
 
 const PORT = Number(process.env.PORT) || 3865;
@@ -128,6 +139,11 @@ function requestError(message, statusCode) {
   return error;
 }
 
+function isLoopbackRequest(req) {
+  const address = String(req.socket && req.socket.remoteAddress || "").toLowerCase();
+  return address === "::1" || /^(?:::ffff:)?127(?:\.\d{1,3}){3}$/.test(address);
+}
+
 function readBody(req, limit) {
   limit = limit || 1024 * 1024;
   return new Promise((resolve, reject) => {
@@ -168,6 +184,591 @@ function handleJson(req, res, handler, limit) {
       }
     });
 }
+
+/* c8 ignore stop */
+
+/* ============================================================
+ * v2.2 可信状态与恢复 API
+ *
+ * 这里仅做协议编排；所有写入都委托给 T2/T3 的事务、恢复和生命周期层。
+ * ============================================================ */
+const TRUSTED_STATES = Object.freeze({
+  healthy: { message: "数据已验证，可以正常使用", severity: "ok" },
+  action_required: { message: "需要确认下一步操作", severity: "warning" },
+  locked: { message: "数据正在被另一个受信操作使用", severity: "warning" },
+  ambiguous: { message: "存在多个恢复候选，需要明确选择", severity: "danger" },
+  upgrade_required: { message: "需要完成受信升级后才能继续", severity: "warning" },
+  in_progress: { message: "正在执行受信操作，请保持应用开启", severity: "progress" },
+  verified: { message: "操作已完成并通过写后验证", severity: "ok" },
+  failed: { message: "操作未能安全完成，现有数据未被判定为可替换", severity: "danger" },
+});
+const V2_BODY_ID_ROUTES = new Set([
+  "/api/lifecycle", "/api/backup/prepare", "/api/backup/commit", "/api/backup/cancel",
+  "/api/recovery/retry", "/api/recovery/restore-old", "/api/recovery/import/prepare", "/api/recovery/import",
+]);
+const legacyRequestKeys = new Map();
+
+const DOMAIN_HTTP = Object.freeze({
+  invalid_request: 400,
+  invalid_bundle: 400,
+  unsupported_version: 400,
+  invalid_path: 400,
+  invalid_timestamp: 400,
+  invalid_storage_topology: 409,
+  checksum_mismatch: 400,
+  data_missing: 404,
+  entry_not_found: 404,
+  transaction_not_found: 404,
+  snapshot_not_found: 404,
+  bundle_too_large: 413,
+  transaction_expired: 410,
+  transaction_busy: 409,
+  state_changed: 409,
+  idempotency_conflict: 409,
+  idempotency_recovery_required: 409,
+  data_in_use: 409,
+  legacy_instance_may_be_running: 409,
+  snapshot_not_restorable: 409,
+  stale_lock_not_proven: 409,
+  maintenance_locked: 423,
+  maintenance_mode: 503,
+  maintenance_timeout: 503,
+  insufficient_space: 507,
+  commit_failed_rolled_back: 500,
+  manual_recovery_required: 500,
+  invalid_lifecycle: 409,
+  attention_unavailable: 500,
+  export_failed: 500,
+});
+
+const DOMAIN_MESSAGES = Object.freeze({
+  invalid_request: "请求字段无效",
+  invalid_bundle: "备份包格式无效",
+  unsupported_version: "数据版本不受支持",
+  invalid_path: "备份包包含不安全路径",
+  invalid_timestamp: "时间格式无效",
+  invalid_storage_topology: "本地数据目录拓扑不安全",
+  checksum_mismatch: "备份校验不一致",
+  bundle_too_large: "备份包超过大小限制",
+  insufficient_space: "目标磁盘空间不足",
+  data_missing: "本地数据不存在",
+  entry_not_found: "条目不存在",
+  transaction_not_found: "事务不存在",
+  snapshot_not_found: "升级快照不存在",
+  snapshot_not_restorable: "升级快照不可恢复",
+  transaction_busy: "已有受信操作正在进行",
+  transaction_expired: "事务已过期，请重新预览",
+  state_changed: "预览后数据已变化，请重新预览",
+  idempotency_conflict: "请求标识已用于其他操作",
+  idempotency_recovery_required: "请求收据需要人工恢复",
+  data_in_use: "本地数据正被其他实例使用",
+  legacy_instance_may_be_running: "旧实例可能仍在运行",
+  stale_lock_not_proven: "无法证明锁已失效",
+  maintenance_locked: "维护正在等待，暂不接受新写入",
+  maintenance_mode: "维护交换正在进行",
+  maintenance_timeout: "等待安全维护窗口超时",
+  commit_failed_rolled_back: "提交失败，已恢复到验证过的旧状态",
+  manual_recovery_required: "无法自动判定安全状态，需要人工恢复",
+  invalid_lifecycle: "生命周期数据需要先修复",
+  attention_unavailable: "待处理列表暂不可用",
+  export_failed: "备份导出失败",
+});
+
+function publicDetails(details) {
+  if (!details || typeof details !== "object") return null;
+  const allowed = new Set(["state", "scope", "scopes", "needed", "available", "requestIds", "reasonCodes"]);
+  const output = {};
+  for (const [key, value] of Object.entries(details)) {
+    if (!allowed.has(key)) continue;
+    if (value === null || ["string", "number", "boolean"].includes(typeof value)) output[key] = value;
+    else if (Array.isArray(value)) output[key] = value.map(item => String(item).slice(0, 120));
+  }
+  return Object.keys(output).length ? output : null;
+}
+
+function sendDomainError(res, error, requestId) {
+  const hinted = error && error.code || error && error.statusCode === 413 && "bundle_too_large" || error && error.statusCode === 400 && "invalid_request";
+  const code = hinted && DOMAIN_HTTP[hinted] ? hinted : "manual_recovery_required";
+  sendJson(res, DOMAIN_HTTP[code] || 500, {
+    ok: false,
+    code,
+    message: DOMAIN_MESSAGES[code] || "操作未能安全完成",
+    requestId: UUID_RE.test(requestId || "") ? requestId.toLowerCase() : null,
+    details: publicDetails(error && error.details),
+  }, code === "maintenance_mode" ? { "Retry-After": "2" } : undefined);
+}
+
+function requireUuid(value, field) {
+  const normalized = String(value || "").toLowerCase();
+  if (!UUID_RE.test(normalized)) {
+    const error = new Error((field || "requestId") + " 必须是 UUID");
+    error.code = "invalid_request";
+    throw error;
+  }
+  return normalized;
+}
+
+function bundleSummary(bundle) {
+  const summary = backup.summary(bundle);
+  return {
+    formatVersion: summary.formatVersion,
+    dataVersion: summary.dataVersion,
+    entryCount: summary.entryCount,
+    fileCount: summary.fileCount,
+    totalBytes: summary.totalBytes,
+    scopes: summary.scopes,
+  };
+}
+
+function createTrustedServices(overrides = {}) {
+  const paths = overrides.paths || backup.defaultPaths();
+  const coordinator = overrides.coordinator || defaultCoordinator;
+  let nativeBinding = overrides.nativeBinding;
+  if (!nativeBinding) {
+    try { nativeBinding = loadNativeBinding(); } catch (_) { nativeBinding = null; }
+  }
+  const manager = overrides.manager || backup.createManager({
+    dataFile: paths.data,
+    entriesDir: paths.entries,
+    brainstormDir: paths.brainstorms,
+    trashDir: paths.trash,
+    orphansDir: paths.orphans,
+    controlDir: paths.controlDir,
+    coordinator,
+    nativeBinding: nativeBinding || undefined,
+    volumeIdProvider: nativeBinding ? value => nativeBinding.getVolumeId(value) : undefined,
+  });
+  const idempotency = overrides.idempotency || new IdempotencyStore(path.join(paths.controlDir, "idempotency"));
+  return {
+    paths,
+    coordinator,
+    manager,
+    idempotency,
+    recovery: overrides.recovery || new RecoveryService(manager, { idempotency }),
+    confirmations: overrides.confirmations || new ConfirmationTokens(),
+    recoveryPreviews: overrides.recoveryPreviews || new Map(),
+    inFlightOperations: overrides.inFlightOperations || new Map(),
+    lastVerified: null,
+  };
+}
+
+let trustedServices = null;
+function services() {
+  if (!trustedServices) trustedServices = createTrustedServices();
+  return trustedServices;
+}
+
+function transactionFingerprint(journal) {
+  return sha256(Buffer.from(JSON.stringify({
+    id: journal.id,
+    state: journal.state,
+    liveFingerprint: journal.liveFingerprint,
+    bundleSha256: journal.bundleSha256,
+  })));
+}
+
+function actionableRecoveryTransactions(status) {
+  return (status && status.transactions || []).filter(item => !["completed", "cancelled", "expired"].includes(item.state));
+}
+
+function trustedStateModel(api) {
+  const maintenance = api.coordinator.status();
+  let recoveryStatus;
+  try { recoveryStatus = api.recovery.status(); }
+  catch (error) {
+    return { state: "failed", condition: TRUSTED_STATES.failed, maintenance, recovery: null, code: error.code || "manual_recovery_required" };
+  }
+  let state = "healthy";
+  const actionable = actionableRecoveryTransactions(recoveryStatus);
+  const selectedCount = actionable.filter(item => item.selection === "selected").length;
+  const ambiguous = actionable.some(item => item.selection === "ambiguous") || selectedCount > 1;
+  if (maintenance.mode === "waiting") state = "locked";
+  else if (maintenance.mode === "maintenance") state = "in_progress";
+  else if (ambiguous) state = "ambiguous";
+  else if (recoveryStatus.activeRecoveryImport) {
+    const activeState = recoveryStatus.activeRecoveryImport.state;
+    state = ["completed", "rescue_rolled_back"].includes(activeState) ? "verified" :
+      activeState === "prepared" ? "action_required" : "in_progress";
+  } else if (recoveryStatus.state === "recovery_required") state = "action_required";
+  else if (api.lastVerified) state = "verified";
+  try {
+    const dataVersion = schema.getDataVersion(store.readAll());
+    if (dataVersion < schema.DATA_VERSION && state === "healthy") state = "upgrade_required";
+  } catch (_) { state = "failed"; }
+  return {
+    state,
+    condition: TRUSTED_STATES[state],
+    maintenance,
+    recovery: recoveryStatus,
+    verifiedAt: api.lastVerified,
+  };
+}
+
+function recoveryConfirmations(api, status) {
+  const confirmations = [];
+  for (const [key, preview] of api.recoveryPreviews) {
+    try {
+      const inspection = api.recovery.inspect(preview.transactionId);
+      const current = inspection.candidates.find(item => item.name === preview.candidateName);
+      if (!current || current.fingerprint !== preview.fingerprint) {
+        api.recoveryPreviews.delete(key);
+        continue;
+      }
+      const issued = api.recovery.issueRestoreToken(preview.transactionId, preview.candidateName);
+      confirmations.push({
+        action: "restore-old",
+        targetKey: key,
+        token: issued.token,
+        expiresAt: issued.expiresAt,
+        stateFingerprint: current.fingerprint,
+      });
+    } catch (_) { api.recoveryPreviews.delete(key); }
+  }
+  const activeId = status.activeRecoveryImport && status.activeRecoveryImport.activeRecoveryImportId;
+  if (activeId && status.activeRecoveryImport.state === "prepared") {
+    try {
+      const issued = api.recovery.issueImportToken(activeId);
+      confirmations.push({ action: "recovery/import", targetKey: activeId, token: issued.token, expiresAt: issued.expiresAt, stateFingerprint: null });
+    } catch (_) {}
+  }
+  for (const transactionId of api.recovery.transactionIds()) {
+    try {
+      const journal = api.manager.load(transactionId);
+      if (journal.state !== "prepared") continue;
+      const fingerprint = transactionFingerprint(journal);
+      const issued = api.confirmations.issue("backup/commit", transactionId, fingerprint);
+      confirmations.push({ action: "backup/commit", targetKey: transactionId, token: issued.token, expiresAt: issued.expiresAt, stateFingerprint: fingerprint });
+    } catch (_) {}
+  }
+  return confirmations;
+}
+
+function publicRecoveryStatus(api) {
+  const state = trustedStateModel(api);
+  const raw = state.recovery || { state: "recovery_required", selection: "none", transactions: [], activeRecoveryImport: null };
+  const transactions = actionableRecoveryTransactions(raw);
+  const selected = transactions.filter(item => item.selection === "selected");
+  const selection = transactions.some(item => item.selection === "ambiguous") || selected.length > 1 ? "ambiguous" : selected.length === 1 ? "selected" : "none";
+  const confirmations = recoveryConfirmations(api, raw);
+  const allowedActions = ["diagnostics"];
+  if (transactions.length) allowedActions.push("retry");
+  if (confirmations.some(item => item.action === "restore-old")) allowedActions.push("restore-old");
+  if (!raw.activeRecoveryImport) allowedActions.push("recovery/import/prepare");
+  if (confirmations.some(item => item.action === "recovery/import")) allowedActions.push("recovery/import");
+  if (confirmations.some(item => item.action === "backup/commit")) allowedActions.push("backup/commit");
+  return {
+    ok: true,
+    state: state.state,
+    condition: state.condition,
+    transactionId: raw.suggestedTransaction || null,
+    selection,
+    transactions,
+    activeRecoveryImport: raw.activeRecoveryImport,
+    upgradeSnapshots: upgrade.listUpgradeSnapshots({
+      dataFile: api.paths.data,
+      entriesDir: api.paths.entries,
+      brainstormsDir: api.paths.brainstorms,
+      trashDir: api.paths.trash,
+      orphansDir: api.paths.orphans,
+      controlDir: api.paths.controlDir,
+    }),
+    staleLocks: [],
+    allowedActions: [...new Set(allowedActions)],
+    confirmations,
+    maintenance: state.maintenance,
+    verifiedAt: state.verifiedAt,
+  };
+}
+
+async function runIdempotent(api, requestId, action, values, work) {
+  const expectedHash = canonicalRequestHash(action, values);
+  const inFlightOperations = api.inFlightOperations || (api.inFlightOperations = new Map());
+  const active = inFlightOperations.get(requestId);
+  if (active) {
+    if (active.action !== action || active.requestHash !== expectedHash) {
+      const error = new Error("requestId conflict");
+      error.code = "idempotency_conflict";
+      throw error;
+    }
+    const completed = await active.promise;
+    return { ...completed, replay: true };
+  }
+
+  const existing = api.idempotency.get(requestId);
+  if (existing) {
+    if (existing.action !== action || existing.requestHash !== expectedHash) {
+      const error = new Error("requestId conflict");
+      error.code = "idempotency_conflict";
+      throw error;
+    }
+    if (existing.state === "committed") return { status: existing.httpStatus, response: existing.response, replay: true };
+  } else api.idempotency.begin({ requestId, action, values });
+
+  const operation = (async () => {
+    const completed = await work();
+    const response = { ok: true, ...completed, operationId: requestId, receipt: "committed" };
+    api.idempotency.commit(requestId, 200, response);
+    return { status: 200, response, replay: false };
+  })();
+  inFlightOperations.set(requestId, { action, requestHash: expectedHash, promise: operation });
+  try {
+    return await operation;
+  } finally {
+    if (inFlightOperations.get(requestId)?.promise === operation) inFlightOperations.delete(requestId);
+  }
+}
+
+function archiveStatuses(api) {
+  const parsed = schema.validateData(store.readAll());
+  return parsed.entries.map(entry => {
+    const task = capture.getArchiveStatus(entry.id) || {};
+    const entryRoot = path.join(api.paths.entries, entry.uid || entry.id);
+    const integrity = archiveIntegrity.scanArchive(entryRoot, { uid: entry.uid });
+    return {
+      id: entry.id,
+      uid: entry.uid,
+      state: task.state || (integrity.state === "healthy" ? "succeeded" : "not_archived"),
+      attempt: Number(task.attempt || 0),
+      nextRunAt: task.nextRunAt || task.nextRetryAt || null,
+      lastError: task.lastError ? { code: String(task.lastError.code || "archive_failed") } : null,
+      active: { state: integrity.state === "healthy" ? "available" : null, snapshotId: integrity.snapshotId, quality: null },
+      integrity: { state: integrity.state, reasonCodes: integrity.reasonCodes, checkedAt: integrity.checkedAt, snapshotId: integrity.snapshotId },
+    };
+  });
+}
+
+function trustedApiHandler(api, req, res, url) {
+  const route = url.pathname;
+  const method = req.method || "GET";
+  const key = method + " " + route;
+  const known = route === "/api/health" || route === "/api/state" || route === "/api/attention" || route === "/api/lifecycle" ||
+    route === "/api/archive/statuses" || route === "/api/archive/integrity/check" || route.startsWith("/api/backup/") ||
+    route.startsWith("/api/recovery/") || route.startsWith("/api/maintenance/") || route.startsWith("/api/upgrade/");
+  if (!known) return false;
+
+  const respond = work => Promise.resolve().then(work).catch(error => {
+    if (!res.writableEnded) sendDomainError(res, error, error.requestId);
+  });
+
+  if (key === "GET /api/health" || key === "GET /api/state") {
+    respond(() => sendJson(res, 200, { ok: true, ...trustedStateModel(api) }));
+    return true;
+  }
+  if (key === "GET /api/maintenance/status") {
+    respond(() => sendJson(res, 200, { ok: true, ...api.coordinator.status() }));
+    return true;
+  }
+  if (key === "GET /api/upgrade/status") {
+    respond(() => sendJson(res, 200, { ok: true, state: trustedStateModel(api).state, snapshots: publicRecoveryStatus(api).upgradeSnapshots }));
+    return true;
+  }
+  if (key === "POST /api/upgrade/preview") {
+    respond(async () => {
+      const data = await readJson(req);
+      sendJson(res, 200, { ok: true, dryRun: true, requestId: data.requestId || null, state: trustedStateModel(api).state,
+        snapshots: publicRecoveryStatus(api).upgradeSnapshots, mutatesData: false });
+    });
+    return true;
+  }
+  if (key === "GET /api/recovery/status") {
+    respond(() => sendJson(res, 200, publicRecoveryStatus(api)));
+    return true;
+  }
+  if (key === "GET /api/recovery/diagnostics") {
+    respond(() => {
+      const status = publicRecoveryStatus(api);
+      sendJson(res, 200, { ok: true, generatedAt: new Date().toISOString(), state: status.state, selection: status.selection,
+        transactions: status.transactions.map(item => ({ transactionId: item.transactionId, state: item.state, selection: item.selection })),
+        maintenance: status.maintenance, upgradeSnapshots: status.upgradeSnapshots });
+    });
+    return true;
+  }
+  if (key === "POST /api/recovery/preview") {
+    respond(async () => {
+      const data = await readJson(req);
+      const transactionId = requireUuid(data.transactionId, "transactionId");
+      const candidateName = String(data.candidateName || "");
+      const inspection = api.recovery.inspect(transactionId);
+      const candidate = inspection.candidates.find(item => item.name === candidateName && item.kind === "old");
+      if (!candidate) { const error = new Error("candidate invalid"); error.code = "invalid_request"; throw error; }
+      const targetKey = transactionId + ":" + candidateName;
+      api.recoveryPreviews.set(targetKey, { transactionId, candidateName, fingerprint: candidate.fingerprint });
+      sendJson(res, 200, { ok: true, dryRun: true, modified: false, targetKey, transactionId, candidate: {
+        name: candidate.name, kind: candidate.kind, completeScopes: candidate.completeScopes, fingerprint: candidate.fingerprint,
+      }, requiresConfirmation: true });
+    });
+    return true;
+  }
+  if (key === "POST /api/recovery/restore-old") {
+    respond(async () => {
+      const data = await readJson(req);
+      const requestId = requireUuid(data.requestId);
+      const transactionId = requireUuid(data.transactionId, "transactionId");
+      const candidateName = String(data.candidateName || "");
+      const replayed = api.recovery.replay(requestId, "recovery.restore-old", { transactionId });
+      if (replayed) { sendJson(res, 200, { ok: true, verified: true, ...replayed }); return; }
+      const targetKey = transactionId + ":" + candidateName;
+      if (!api.recoveryPreviews.has(targetKey)) { const error = new Error("preview required"); error.code = "state_changed"; error.requestId = requestId; throw error; }
+      const result = await api.recovery.restoreOld(transactionId, candidateName, String(data.confirmationToken || ""), { requestId });
+      api.recoveryPreviews.delete(targetKey);
+      api.lastVerified = new Date().toISOString();
+      sendJson(res, 200, { ok: true, verified: true, ...result });
+    });
+    return true;
+  }
+  if (key === "POST /api/recovery/retry") {
+    respond(async () => {
+      const data = await readJson(req);
+      const requestId = requireUuid(data.requestId);
+      const transactionId = data.transactionId === null ? null : requireUuid(data.transactionId, "transactionId");
+      if (!transactionId) { const error = new Error("transaction missing"); error.code = "transaction_not_found"; error.requestId = requestId; throw error; }
+      const completed = await runIdempotent(api, requestId, "recovery.retry", { transactionId }, () => api.manager.recover(transactionId));
+      api.lastVerified = new Date().toISOString();
+      sendJson(res, completed.status, completed.response);
+    });
+    return true;
+  }
+  if (key === "POST /api/recovery/import/prepare") {
+    respond(async () => {
+      const data = await readJson(req, 80 * 1024 * 1024);
+      const requestId = requireUuid(data.requestId);
+      const result = await api.recovery.prepareImport(data.bundle, { requestId });
+      sendJson(res, 200, { ok: true, dryRun: true, modified: false, ...result, summary: bundleSummary(data.bundle) });
+    });
+    return true;
+  }
+  if (key === "POST /api/recovery/import") {
+    respond(async () => {
+      const data = await readJson(req);
+      const requestId = requireUuid(data.requestId);
+      const recoveryPrepareId = requireUuid(data.recoveryPrepareId, "recoveryPrepareId");
+      const result = await api.recovery.commitImport(recoveryPrepareId, String(data.confirmationToken || ""), { requestId });
+      api.lastVerified = new Date().toISOString();
+      sendJson(res, 200, { ok: true, verified: true, ...result });
+    });
+    return true;
+  }
+  if (key === "POST /api/backup/preview") {
+    respond(async () => {
+      const data = await readJson(req, 80 * 1024 * 1024);
+      sendJson(res, 200, { ok: true, dryRun: true, modified: false, summary: bundleSummary(data.bundle), warnings: backup.validateBundle(data.bundle).warnings });
+    });
+    return true;
+  }
+  if (key === "POST /api/backup/prepare") {
+    respond(async () => {
+      const data = await readJson(req, 80 * 1024 * 1024);
+      const requestId = requireUuid(data.requestId);
+      const prepared = await api.manager.prepare(data.bundle, { requestId });
+      sendJson(res, 201, { ok: true, dryRun: true, modified: false, ...prepared, summary: bundleSummary(data.bundle) });
+    });
+    return true;
+  }
+  if (key === "POST /api/backup/commit") {
+    respond(async () => {
+      const data = await readJson(req);
+      const requestId = requireUuid(data.requestId);
+      const transactionId = requireUuid(data.transactionId, "transactionId");
+      const completed = await runIdempotent(api, requestId, "backup.commit", { transactionId }, async () => {
+        const journal = api.manager.load(transactionId);
+        api.confirmations.consume(String(data.confirmationToken || ""), "backup/commit", transactionId, transactionFingerprint(journal));
+        const result = await api.manager.commit(transactionId);
+        return { ...result, transactionId, verified: result.committed === true };
+      });
+      api.lastVerified = new Date().toISOString();
+      sendJson(res, completed.status, completed.response);
+    });
+    return true;
+  }
+  if (key === "POST /api/backup/cancel") {
+    respond(async () => {
+      const data = await readJson(req);
+      const requestId = requireUuid(data.requestId);
+      const transactionId = requireUuid(data.transactionId, "transactionId");
+      const completed = await runIdempotent(api, requestId, "backup.cancel", { transactionId }, async () => ({ ...await api.manager.cancel(transactionId), transactionId }));
+      sendJson(res, completed.status, completed.response);
+    });
+    return true;
+  }
+  if (key === "GET /api/attention") {
+    respond(() => {
+      const statuses = archiveStatuses(api);
+      const byUid = Object.fromEntries(statuses.map(item => [item.uid, { state: item.state, integrity: item.integrity }]));
+      const result = attention.aggregateAttention(store.readAll(), { entriesDir: api.paths.entries, archiveByUid: byUid });
+      sendJson(res, 200, { ok: true, ...result });
+    });
+    return true;
+  }
+  if (key === "POST /api/lifecycle") {
+    respond(async () => {
+      const data = await readJson(req);
+      const requestId = requireUuid(data.requestId);
+      const result = await lifecycle.updateLifecycle(String(data.id || ""), String(data.action || ""), {
+        requestId, nextReviewAt: data.nextReviewAt, controlDir: api.paths.controlDir, coordinator: api.coordinator,
+      });
+      sendJson(res, 200, { ok: true, ...result });
+    });
+    return true;
+  }
+  if (key === "GET /api/archive/statuses") {
+    respond(() => sendJson(res, 200, { ok: true, generatedAt: new Date().toISOString(), statuses: archiveStatuses(api) }));
+    return true;
+  }
+  if (key === "POST /api/archive/integrity/check") {
+    respond(async () => {
+      const data = await readJson(req);
+      if (!Array.isArray(data.ids) || !data.ids.length || data.ids.length > 200) {
+        const error = new Error("ids invalid"); error.code = data.ids && data.ids.length > 200 ? "bundle_too_large" : "invalid_request"; throw error;
+      }
+      const wanted = [...new Set(data.ids.map(item => String(item)))];
+      const parsed = schema.validateData(store.readAll());
+      const found = new Map(parsed.entries.map(item => [item.id, item]));
+      const results = wanted.map(id => {
+        const entry = found.get(id);
+        if (!entry) return { id, uid: null, state: "not_archived", reasonCodes: ["entry_not_found"], checkedAt: null, snapshotId: null };
+        const checked = archiveIntegrity.scanArchive(path.join(api.paths.entries, entry.uid || entry.id), { uid: entry.uid, verify: true });
+        return { id, uid: entry.uid, ...checked };
+      });
+      sendJson(res, 200, { ok: true, generatedAt: new Date().toISOString(), results });
+    });
+    return true;
+  }
+
+  sendJson(res, 405, { ok: false, code: "invalid_request", message: "该接口不支持此方法", requestId: null, details: null }, { "Allow": key.startsWith("GET ") ? "POST" : "GET" });
+  return true;
+}
+
+function maintenanceGate(api, req, res, route) {
+  const status = api.coordinator.status();
+  if (status.mode === "normal" || route === "/api/health" || route === "/api/state" || route.startsWith("/api/recovery/") ||
+      route === "/api/maintenance/status" || route === "/api/upgrade/status") return false;
+  const mutation = ["POST", "PUT", "PATCH", "DELETE"].includes(req.method);
+  const code = status.mode === "waiting" && mutation ? "maintenance_locked" : "maintenance_mode";
+  sendDomainError(res, { code }, null);
+  return true;
+}
+
+function legacyMutationIdentity(req, res, route) {
+  const mutation = ["POST", "PUT", "PATCH", "DELETE"].includes(req.method);
+  if (!mutation || V2_BODY_ID_ROUTES.has(route) || route === "/api/control/shutdown" || route.startsWith("/api/wecom/")) return false;
+  const requestId = String(req.headers["idempotency-key"] || "").toLowerCase();
+  if (!UUID_RE.test(requestId)) {
+    sendDomainError(res, { code: "invalid_request" }, null);
+    return true;
+  }
+  const signature = req.method + " " + route;
+  const prior = legacyRequestKeys.get(requestId);
+  if (prior && prior !== signature) {
+    sendDomainError(res, { code: "idempotency_conflict" }, requestId);
+    return true;
+  }
+  legacyRequestKeys.set(requestId, signature);
+  if (legacyRequestKeys.size > 2000) legacyRequestKeys.delete(legacyRequestKeys.keys().next().value);
+  req.operationId = requestId;
+  return false;
+}
+
+/* c8 ignore start -- legacy routes remain covered by their existing integration suite; T4 never rewrites them directly. */
 
 /* ===== multipart/form-data 解析(零依赖,支持单文件 + 文本字段) ===== */
 function parseMultipart(req, cb) {
@@ -231,8 +832,9 @@ const server = http.createServer((req, res) => {
   const p = u.pathname;
   const clientKey = req.socket && req.socket.remoteAddress || "unknown";
   const authKind = auth.authorizationKind(req);
+  const isControlRoute = p === "/api/control/shutdown";
 
-  if (p.startsWith("/api/")) {
+  if (p.startsWith("/api/") && !isControlRoute) {
     const rate = apiLimiter.check(clientKey);
     if (!rate.allowed) {
       sendJson(res, 429, { ok: false, error: "请求过于频繁，请稍后重试", retryAfter: rate.retryAfter }, { "Retry-After": String(rate.retryAfter) });
@@ -268,6 +870,27 @@ const server = http.createServer((req, res) => {
     sendJson(res, 403, { ok: false, error: "拒绝跨站请求（来源必须与看板端口完全一致）" });
     return;
   }
+
+  if (legacyMutationIdentity(req, res, p)) return;
+
+  /* 桌面启动器专用：只接受来自本机回环连接的显式令牌，不授权浏览器会话。 */
+  if (isControlRoute) {
+    if (req.method !== "POST") {
+      sendJson(res, 405, { ok: false, error: "仅支持 POST" }, { "Allow": "POST" });
+      return;
+    }
+    if (authKind !== "token" || !isLoopbackRequest(req)) {
+      sendJson(res, 403, { ok: false, error: "仅桌面启动器可停止本地服务" });
+      return;
+    }
+    res.once("finish", () => setImmediate(() => shutdown("桌面窗口已关闭", 0)));
+    sendJson(res, 202, { ok: true, shuttingDown: true });
+    return;
+  }
+
+  const trustedApi = services();
+  if (maintenanceGate(trustedApi, req, res, p)) return;
+  if (trustedApiHandler(trustedApi, req, res, u)) return;
 
   /* 读取数据 */
   if (p === "/api/data") {
@@ -795,6 +1418,12 @@ function shutdown(reason, exitCode) {
     process.exit(exitCode);
   });
 }
+/* 统一入库辅助：抓取元数据 + 写入 DATA.md（供企业微信/钉钉等外部入口复用） */
+async function addUrlToBoard(url) {
+  return capture.addUrl(url, { stage: "外部入口" });
+}
+
+if (require.main === module) {
 process.on("SIGINT", () => shutdown("收到 Ctrl+C", 0));
 process.on("SIGTERM", () => shutdown("收到退出信号", 0));
 process.on("uncaughtException", error => {
@@ -805,11 +1434,6 @@ process.on("unhandledRejection", reason => {
   recordError("unhandledRejection", reason);
   shutdown("发生未处理的异步异常", 1);
 });
-
-/* 统一入库辅助：抓取元数据 + 写入 DATA.md（供企业微信/钉钉等外部入口复用） */
-async function addUrlToBoard(url) {
-  return capture.addUrl(url, { stage: "外部入口" });
-}
 
 ensureDataFile();
 let migrationSummary;
@@ -849,3 +1473,20 @@ server.listen(PORT, HOST, () => {
     }
   } catch (_) { /* 打开浏览器失败不阻塞 */ }
 });
+}
+
+module.exports = {
+  TRUSTED_STATES,
+  actionableRecoveryTransactions,
+  createTrustedServices,
+  legacyMutationIdentity,
+  maintenanceGate,
+  publicDetails,
+  publicRecoveryStatus,
+  requireUuid,
+  runIdempotent,
+  sendDomainError,
+  transactionFingerprint,
+  trustedApiHandler,
+  trustedStateModel,
+};

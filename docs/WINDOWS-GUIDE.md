@@ -2,66 +2,74 @@
 
 ## 安装与首次启动
 
-1. 下载 `linggankanban-2.1.0-windows-portable-x64.zip`。
-2. 解压到有写权限且便于备份的目录，例如 `D:\Apps\灵感看板`。不要直接在压缩包内运行，也不建议放入 `Program Files`。
-3. 双击 `start-portable.bat`。便携版已经包含 Node.js 运行时和依赖，不需要安装或修改系统环境。
-4. 首次启动会从 `DATA.example.md` 创建 `DATA.md`，浏览器应自动打开 `http://127.0.0.1:3865`。
+### 单文件 EXE
 
-不要直接双击 `board.html`，它只能进入静态文件模式；也不要在压缩包预览窗口中直接运行启动器。必须先完整解压，再双击对应的 `.bat`。
+下载 `linggankanban-2.2.0-windows-x64.exe` 和同一 Release 的 `SHA256SUMS.txt`，先校验 SHA-256，再双击 EXE。无需安装 Node.js。程序缓存位于 `%LOCALAPPDATA%\LingganKanban\app`，个人数据默认位于 `%USERPROFILE%\Documents\LingganKanban`；两者分离，替换 EXE 不会覆盖数据。
 
-如果使用约 1MB 的源码包，则需要先安装 Node.js 20 或更高版本，再双击 `start.bat`；首次运行会自动执行 `npm ci`。
+程序优先使用 Microsoft Edge 应用窗口；Edge 不可用时回退到默认浏览器。再次启动会复用已运行的同版本服务，不会创建第二个写入者。
 
-源码包可在项目目录运行：
+### 便携版与源码版
+
+便携版下载 `linggankanban-2.2.0-windows-portable-x64.zip`，完整解压到有写权限的目录后双击 `start-portable.bat`。包内固定为 Node.js 24.16.0，无需系统 Node.js。不要在压缩包预览窗口内运行。
+
+源码版需要 Node.js 22 或 24；Node.js 20 已停止支持：
 
 ```powershell
+npm ci
 npm run doctor
+npm start
 ```
 
-自检覆盖 Node.js 版本、依赖完整性、数据目录读写权限和 3865 端口状态。便携版启动时会自动执行同等检查。
+## 数据、备份与网络边界
 
-## 数据位置与备份
+主数据是 `DATA.md`；研究笔记、正文和截图位于 `entries/` 或配置的 `ENTRIES_DIR`；事务、恢复、迁移和升级证据位于数据根下 `.linggan/`。其中常用目录包括：
 
-- 主数据：`DATA.md`
-- 研究笔记、正文、截图和主动归档：`docs\entries\`
-- 自动写入备份：与 `DATA.md` 同目录的时间戳备份
-- 迁移、导入前完整备份：`.linggan\migration-backups\`
-- 回收站：`.linggan\trash\`
+- `.linggan/migration-backups/`：旧格式迁移前副本；
+- `.linggan/upgrade-snapshots/`：v2.2 升级前完整快照；
+- `.linggan/recovery-imports/`：恢复事务状态和收据；
+- `.linggan/idempotency/`：幂等请求状态。
 
-应用右上角“数据管理”可以导出一个完整 JSON 备份包。跨电脑迁移前，建议先导出完整备份，再在新电脑上导入。
+应用本地读取、搜索、备份和恢复预检不依赖网络。网页抓取失败时保留已保存 URL 和已有本地内容，显示失败状态供重试，不会用较差结果静默覆盖有效归档。
 
-“数据管理 → 导入浏览器书签”支持 Chrome、Edge 等浏览器导出的 HTML 文件。系统会先显示有效、重复和可导入数量，确认后一次性写入“收件箱”；原书签文件夹会转换成标签，导入本身不会逐条访问外部网页。
+## 从 v2.1 升级
 
-同一页面会显示数据健康状态、文件读写权限和最近备份时间。出现“异常”时先导出完整备份，再根据列出的编号、UID 或链接问题检查 `DATA.md`。
+1. 停止旧服务并复制整个数据目录；不要让两个版本同时写入。
+2. 在旧版本中导出完整备份，记录条目、笔记、正文和截图数量。
+3. 将 v2.2 成品放到新目录后启动；启动器先预检、加锁并创建升级快照，再开放数据 API。
+4. 核对数据与 `.linggan/upgrade-snapshots/pre-2.2.0-*` 中的 `manifest.json`。升级中断会在下次启动收敛；证据歧义或验证失败时停止并显示恢复指引。
 
-## 从旧版本升级
+不要把旧目录直接覆盖为新目录，也不要手工删除事务、锁或快照来“继续启动”。
 
-1. 在旧版本中导出完整备份，并停止旧服务。
-2. 将新版本解压到新目录，不要覆盖旧目录。
-3. 首次启动新版本后，在“数据管理”中导入完整备份。
-4. 确认条目数量、研究笔记、正文、截图和链接归档无误后，再保留或归档旧目录。
+## 恢复与回滚
 
-直接复制旧版 `DATA.md` 与 `docs\entries\` 也受支持。首次启动会在 `.linggan\migration-backups\` 创建完整备份，再迁移到数据格式 v2；迁移失败时服务不会启动，也不会覆盖原始数据。
-
-## 端口占用
-
-若 3865 端口已是灵感看板，双击启动器会直接打开现有服务。若被其他程序占用，可在 PowerShell 中换端口启动：
+恢复默认只读。先停止其他实例并对数据目录副本执行：
 
 ```powershell
-$env:PORT = "3866"
-.\start.bat
+node scripts/recover.js --help
+node scripts/recover.js --json
 ```
 
-浏览器随后访问 `http://127.0.0.1:3866`。
+若输出 `ambiguous_recovery`、`data_in_use`、`legacy_instance_may_be_running` 或 `manual_recovery_required`，不要猜测候选或删除锁。保存诊断输出，确认旧进程已停止，再按 `--help` 显式提供事务、候选、`--apply` 与交互确认。每次变更前会生成已验证副本，完成后复验并写入收据；同一操作 ID 重跑不会重复生效。
 
-## 常见故障
+升级回滚只使用已验证、标记为 restorable 的 `pre-2.2.0-*` 快照。先保留当前失败状态的完整副本，再在 UI/CLI 中预览、核对 manifest SHA-256 并确认。不要用 Git、旧安装包或仓库 `DATA.md` 替换个人数据。
 
-- 双击后没有反应：确认已完整解压，便携版运行 `start-portable.bat`、源码版运行 `start.bat`；然后直接访问 `http://127.0.0.1:3865/`。新版启动器使用纯 ASCII 批处理，避免中文被旧版 `cmd.exe` 误解析。
-- “未找到 Node.js”：安装 Node.js 20 LTS，关闭并重新打开终端后再运行。
-- “缺少依赖”：保持网络可用并重新双击 `start.bat`，或手工运行 `npm ci`。
-- “数据路径不可读写”：把整个项目移动到当前用户有写权限的目录。
-- 页面无法打开：先运行 `npm run doctor`，再查看启动窗口及 `docs\server-error.log`。
-- 网页内容无法解析：检查网络与代理；必要时设置 `PROXY_URL`，不要关闭 SSRF 防护来解决普通公网抓取问题。
+## 校验下载
 
-## 卸载
+在 Release 下载目录中执行：
 
-先在“数据管理”中导出完整备份并停止服务。确认备份可以保存后，删除解压目录即可；程序不会在注册表或系统服务中写入持久配置。若数据目录通过 `README_FILE` 指向项目外部，请单独决定是否保留该目录。
+```powershell
+Get-FileHash .\linggankanban-2.2.0-windows-x64.exe -Algorithm SHA256
+Get-FileHash .\linggankanban-2.2.0-windows-portable-x64.zip -Algorithm SHA256
+Get-Content .\SHA256SUMS.txt
+```
+
+文件名和哈希必须逐项完全匹配。EXE 当前可能未做商业代码签名，因此只从可信 Release 获取并强制校验。
+
+## 常见故障与卸载
+
+- 端口 3865 被其他程序占用：停止明确识别的进程，或在源码/便携模式设置 `$env:PORT = "3866"` 后启动；不要结束未知进程。
+- “数据正在使用”：关闭旧版本和其他用户会话；活动锁不能被自动窃取。
+- “需要人工恢复”：保留数据目录、诊断和快照，不要反复写入；先做只读恢复检查。
+- 网页解析失败：检查网络/代理后显式重试；本地条目仍应存在。
+
+卸载前导出并验证完整备份。删除 EXE 或程序缓存不会删除“文档\LingganKanban”；个人数据只有在确认备份可恢复且明确不再需要时才删除。便携/源码版的数据可能与程序同目录，删除目录前必须先检查 `DATA.md`、`entries/` 和 `.linggan/`。

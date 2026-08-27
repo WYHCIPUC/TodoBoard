@@ -55,15 +55,15 @@
         <button type="button" data-view="board" aria-pressed="false">看板</button>
       </div>
       <div class="theme-wrap">
-        <button type="button" class="btn theme-btn" id="themeBtn" title="切换主题" aria-label="切换主题" aria-haspopup="menu" aria-expanded="false">
+        <button type="button" class="btn theme-btn" id="themeBtn" title="切换主题" aria-label="切换主题" aria-haspopup="menu" aria-controls="themePanel" aria-expanded="false">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3 M12 19v3 M2 12h3 M19 12h3 M4.9 4.9l2.1 2.1 M17 17l2.1 2.1 M19.1 4.9L17 7 M7 17l-2.1 2.1"/></svg>
         </button>
-        <div class="theme-panel" id="themePanel">
+        <div class="theme-panel" id="themePanel" role="menu" aria-hidden="true" hidden inert>
           <div class="tp-t">主题</div>
-          <button type="button" class="tp-item" data-t="light"><span class="sw sw-light"></span>晨曦暖白</button>
-          <button type="button" class="tp-item" data-t="dark"><span class="sw sw-dark"></span>深邃暗色</button>
-          <button type="button" class="tp-item" data-t="aurora"><span class="sw sw-aurora"></span>极光幻彩</button>
-          <button type="button" class="tp-item" data-t="forest"><span class="sw sw-forest"></span>森林静谧</button>
+          <button type="button" class="tp-item" data-t="light" role="menuitem"><span class="sw sw-light"></span>晨曦暖白</button>
+          <button type="button" class="tp-item" data-t="dark" role="menuitem"><span class="sw sw-dark"></span>深邃暗色</button>
+          <button type="button" class="tp-item" data-t="aurora" role="menuitem"><span class="sw sw-aurora"></span>极光幻彩</button>
+          <button type="button" class="tp-item" data-t="forest" role="menuitem"><span class="sw sw-forest"></span>森林静谧</button>
         </div>
       </div>
       <div class="load">
@@ -81,8 +81,8 @@
         </button>
         <button type="button" class="btn icon-btn" id="helpBtn" title="使用帮助" aria-label="使用帮助">?</button>
         <div class="more-wrap">
-          <button type="button" class="btn icon-btn more-btn" id="moreBtn" title="更多操作" aria-label="更多操作" aria-haspopup="menu" aria-expanded="false">•••</button>
-          <div class="more-panel" id="morePanel" role="menu">
+          <button type="button" class="btn icon-btn more-btn" id="moreBtn" title="更多操作" aria-label="更多操作" aria-haspopup="menu" aria-controls="morePanel" aria-expanded="false">•••</button>
+          <div class="more-panel" id="morePanel" role="menu" aria-hidden="true" hidden inert>
             <div class="more-panel-title">工作台工具</div>
             <button type="button" role="menuitem" data-target="rollBtn">随机抽取</button>
             <button type="button" role="menuitem" data-target="statsBtn">统计洞察</button>
@@ -100,6 +100,16 @@
       </div>
     </div>
   </header>
+
+  <section class="trust-rail" id="trustRail" data-state="in_progress" aria-labelledby="trustRailTitle">
+    <div class="trust-rail-mark" aria-hidden="true"><span></span></div>
+    <div class="trust-rail-copy">
+      <span class="trust-kicker">LOCAL DATA · VERIFIED RECOVERY</span>
+      <strong id="trustRailTitle">正在核对本地数据状态</strong>
+      <small id="trustRailDetail">写入、恢复和升级只有在完成写后验证后才会显示成功。</small>
+    </div>
+    <button type="button" class="trust-rail-action" id="trustCenterBtn" aria-haspopup="dialog" aria-controls="recoveryModal">查看状态</button>
+  </section>
 
   <!-- 统计条 -->
   <section class="statsbar" id="statsbar" hidden>
@@ -146,11 +156,11 @@
       </form>
       <div class="brainstorm-viewbar">
         <div class="brainstorm-modes" role="tablist" aria-label="分析视角">
-          <button type="button" class="active" data-brainstorm-mode="fusion" role="tab" aria-selected="true">融合方案</button>
-          <button type="button" data-brainstorm-mode="panorama" role="tab" aria-selected="false">关系全景</button>
-          <button type="button" data-brainstorm-mode="opportunities" role="tab" aria-selected="false">机会</button>
-          <button type="button" data-brainstorm-mode="challenges" role="tab" aria-selected="false">盲区</button>
-          <button type="button" data-brainstorm-mode="roadmap" role="tab" aria-selected="false">路线</button>
+          <button type="button" class="active" id="brainstormTabFusion" data-brainstorm-mode="fusion" role="tab" aria-selected="true" aria-controls="brainstormFusionPanel" tabindex="0">融合方案</button>
+          <button type="button" id="brainstormTabPanorama" data-brainstorm-mode="panorama" role="tab" aria-selected="false" aria-controls="brainstormDimensionsPanel brainstormNetworkPanel" tabindex="-1">关系全景</button>
+          <button type="button" id="brainstormTabOpportunities" data-brainstorm-mode="opportunities" role="tab" aria-selected="false" aria-controls="brainstormSuggestionsPanel" tabindex="-1">机会</button>
+          <button type="button" id="brainstormTabChallenges" data-brainstorm-mode="challenges" role="tab" aria-selected="false" aria-controls="brainstormSuggestionsPanel" tabindex="-1">盲区</button>
+          <button type="button" id="brainstormTabRoadmap" data-brainstorm-mode="roadmap" role="tab" aria-selected="false" aria-controls="brainstormSuggestionsPanel" tabindex="-1">路线</button>
         </div>
         <div class="brainstorm-summary" id="brainstormSummary" aria-live="polite"></div>
       </div>
@@ -158,15 +168,15 @@
         <summary>查看本轮分析依据</summary>
         <div class="brainstorm-insights" id="brainstormInsights"></div>
       </details>
-      <section class="brainstorm-fusion-section" id="brainstormFusionPanel" aria-labelledby="brainstormFusionTitle">
+      <section class="brainstorm-fusion-section" id="brainstormFusionPanel" role="tabpanel" aria-labelledby="brainstormTabFusion brainstormFusionTitle">
         <div class="brainstorm-section-head"><strong id="brainstormFusionTitle">需求驱动融合方案</strong><span id="brainstormFusionMeta">点击来源项目可返回研究档案</span></div>
         <div class="brainstorm-fusion" id="brainstormFusion"><div class="brainstorm-loading">正在围绕实际需求抽取项目长处…</div></div>
       </section>
-      <section class="brainstorm-dimensions-section" id="brainstormDimensionsPanel" aria-labelledby="brainstormDimensionsTitle" hidden>
+      <section class="brainstorm-dimensions-section" id="brainstormDimensionsPanel" role="tabpanel" aria-labelledby="brainstormTabPanorama brainstormDimensionsTitle" hidden>
         <div class="brainstorm-section-head"><strong id="brainstormDimensionsTitle">多维分析雷达</strong><span>不是只看“相似”，而是同时寻找共振、互补、迁移与进阶</span></div>
         <div class="brainstorm-dimensions" id="brainstormDimensions"><div class="brainstorm-loading">正在展开分析维度…</div></div>
       </section>
-      <div class="brainstorm-layout" id="brainstormNetworkPanel" hidden>
+      <div class="brainstorm-layout" id="brainstormNetworkPanel" role="tabpanel" aria-labelledby="brainstormTabPanorama" hidden>
         <section class="brainstorm-graph-panel" aria-labelledby="brainstormGraphTitle">
           <div class="brainstorm-section-head"><strong id="brainstormGraphTitle">全景知识网络</strong><span>节点越大，连接越多；边代表不同碰撞类型</span></div>
           <div class="brainstorm-graph" id="brainstormGraph"><div class="brainstorm-loading">正在分析关联…</div></div>
@@ -176,7 +186,7 @@
           <div class="brainstorm-matrix" id="brainstormMatrix"><div class="brainstorm-loading">正在计算跨域碰撞…</div></div>
         </section>
       </div>
-      <section class="brainstorm-suggestions-panel" id="brainstormSuggestionsPanel" aria-labelledby="brainstormSuggestionsTitle" hidden>
+      <section class="brainstorm-suggestions-panel" id="brainstormSuggestionsPanel" role="tabpanel" aria-labelledby="brainstormSuggestionsTitle" hidden>
         <div class="brainstorm-section-head"><strong id="brainstormSuggestionsTitle">机会、挑战与行动建议</strong><span>多种思路并列呈现，每条均可追溯依据</span></div>
         <div class="brainstorm-suggestions" id="brainstormSuggestions"><div class="brainstorm-loading">正在生成多维建议…</div></div>
       </section>
@@ -198,6 +208,10 @@
             <h1 class="bt" id="bannerTitle">灵感项目库</h1>
             <div class="bs" id="bannerSub"></div>
             <div class="bb" id="bannerBadges"></div>
+            <div class="banner-progress" aria-label="研究推进度">
+              <span><b id="bannerProgressLabel">研究推进 0%</b><small id="bannerProgressMeta">尚未开始</small></span>
+              <span class="banner-progress-track" role="progressbar" aria-label="研究推进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="bannerProgressTrack"><i id="bannerProgressBar"></i></span>
+            </div>
           </div>
           <div class="banner-side">
             <button type="button" class="brainstorm-bridge" id="brainstormBridgeBtn">
@@ -262,10 +276,10 @@
     </div>
 
     <!-- 列表视图 -->
-    <section id="listView" class="list" hidden></section>
+    <section id="listView" class="list" role="list" aria-label="灵感项目列表" hidden></section>
 
     <!-- 看板视图 -->
-    <section id="boardView" class="board" hidden></section>
+    <section id="boardView" class="board" role="list" aria-label="灵感项目看板" hidden></section>
 
     <!-- 研究档案详情视图 -->
     <section id="entryView" class="entry-view" hidden>
@@ -300,8 +314,8 @@
         <fieldset class="ef-set">
           <legend>📸 界面截图</legend>
           <div class="ss-upload">
-            <input type="file" id="ssInput" accept="image/png,image/jpeg">
-            <input type="text" id="ssCaption" placeholder="本张说明(选填)">
+            <input type="file" id="ssInput" accept="image/png,image/jpeg" aria-label="选择 PNG 或 JPEG 截图">
+            <input type="text" id="ssCaption" placeholder="本张说明(选填)" aria-label="截图说明">
             <button type="button" class="btn" id="ssUploadBtn">上传截图</button>
           </div>
           <div id="ssGrid" class="ss-grid"></div>
@@ -421,6 +435,34 @@
     </div>
   </div>
 
+  <div class="modal-overlay recovery-overlay" id="recoveryModal" role="dialog" aria-modal="true" aria-labelledby="recoveryTitle" aria-describedby="recoverySummary">
+    <div class="modal recovery-modal">
+      <button type="button" class="modal-x" aria-label="关闭">×</button>
+      <div class="recovery-heading">
+        <span class="recovery-seal" id="recoverySeal" aria-hidden="true">R</span>
+        <div><div class="onboarding-kicker">可信恢复中心</div><div class="m-title" id="recoveryTitle">正在读取本地状态</div></div>
+      </div>
+      <p class="m-sub" id="recoverySummary" aria-live="polite">不会自动猜测恢复候选，也不会在验证完成前报告成功。</p>
+      <div class="recovery-status" id="recoveryStatus" role="status" aria-live="polite"></div>
+      <fieldset class="recovery-candidates" id="recoveryCandidates">
+        <legend>恢复候选</legend>
+        <div id="recoveryCandidateList"><p class="recovery-empty">当前没有需要选择的恢复候选。</p></div>
+      </fieldset>
+      <section class="recovery-preview" id="recoveryPreview" aria-labelledby="recoveryPreviewTitle" hidden>
+        <div class="recovery-step">DRY RUN · 未修改数据</div>
+        <h3 id="recoveryPreviewTitle">恢复预览</h3>
+        <pre id="recoveryPreviewText"></pre>
+      </section>
+      <div class="recovery-error" id="recoveryError" role="alert" aria-live="assertive" tabindex="-1" hidden></div>
+      <div class="recovery-actions">
+        <button type="button" class="btn" id="recoveryRefreshBtn">重新检查</button>
+        <button type="button" class="btn" id="recoveryPreviewBtn" disabled>查看只读预览</button>
+        <button type="button" class="btn danger" id="recoveryConfirmBtn" disabled>确认恢复所选候选</button>
+      </div>
+      <p class="recovery-footnote">确认令牌只绑定当前候选和当前磁盘状态。刷新、状态变化或令牌过期后必须重新预览。</p>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="onboardingModal" role="dialog" aria-modal="true" aria-labelledby="onboardingTitle">
     <div class="modal onboarding-modal">
       <button type="button" class="modal-x onboarding-dismiss" aria-label="关闭">×</button>
@@ -474,11 +516,20 @@
           </div>
         </div>
         <div class="s-note">
-          <label for="studyNote">研究笔记（自动写回 DATA.md 的研究要点）</label>
+          <label for="studyNote">研究笔记（点击保存后写回 DATA.md）</label>
           <textarea id="studyNote" placeholder="记录研究发现、踩坑、心得…"></textarea>
         </div>
         <div class="s-actions" style="margin-top:2px">
           <button class="btn primary" id="studySave">保存笔记</button>
+        </div>
+        <div class="study-exit-guard" id="studyExitGuard" role="alert" hidden>
+          <strong>笔记还没有保存</strong>
+          <span>保存后再退出，或明确放弃本次修改。</span>
+          <div>
+            <button type="button" class="btn primary" id="studySaveExit">保存并退出</button>
+            <button type="button" class="btn" id="studyDiscardExit">放弃修改</button>
+            <button type="button" class="btn" id="studyContinue">继续编辑</button>
+          </div>
         </div>
       </div>
     </div>
@@ -486,18 +537,25 @@
 
   <!-- 新增模态 -->
   <div class="modal-overlay" id="modal" role="dialog" aria-modal="true" aria-labelledby="addTitle">
-    <div class="modal">
+    <div class="modal capture-modal">
       <h3 id="addTitle">新增待办条目</h3>
-      <p class="sub">粘贴链接，自动抓取标题、作者、简介、封面并分类。抓取结果可微调，确认后保存到 DATA.md。</p>
+      <p class="sub">粘贴链接后自动识别内容并分类。保存时写入 DATA.md，同时在后台创建本地归档。</p>
+
+      <div class="capture-assurances" aria-label="链接保存流程">
+        <span><b>01</b>识别内容</span>
+        <span><b>02</b>写入本地</span>
+        <span><b>03</b>主动归档</span>
+      </div>
 
       <label for="fetchUrl">链接</label>
-      <div style="display:flex;gap:8px">
-        <input type="text" id="fetchUrl" placeholder="B站 / 微信公众号 / GitHub 链接" style="flex:1">
-        <button class="btn primary" id="fetchBtn" style="flex-shrink:0">识别</button>
+      <div class="capture-input-row">
+        <input type="text" id="fetchUrl" placeholder="粘贴 GitHub、X、微信、B站或任意网页链接">
+        <button class="btn primary" id="fetchBtn">识别链接</button>
       </div>
+      <p class="capture-privacy">核心数据与归档默认只保存在这台电脑，不需要登录账户。</p>
       <div class="fetch-load" id="fetchLoad">正在识别链接…</div>
-      <div class="fetch-err" id="fetchErr"></div>
-      <div class="fetch-warn" id="fetchWarn"></div>
+      <div class="fetch-err" id="fetchErr" role="alert" aria-live="assertive"></div>
+      <div class="fetch-warn" id="fetchWarn" role="status" aria-live="polite"></div>
 
       <div class="fetch-prev" id="fetchPrev">
         <div class="fp-cover" id="fpCover">
@@ -515,8 +573,8 @@
         <div class="row2">
           <div>
             <label for="linkName">标题</label>
-            <input type="text" id="linkName" placeholder="自动识别的标题">
-            <div class="hint-err" id="nameErr">请填写标题</div>
+            <input type="text" id="linkName" placeholder="自动识别的标题" aria-describedby="nameErr">
+            <div class="hint-err" id="nameErr" role="alert" aria-live="assertive">请填写标题</div>
           </div>
           <div>
             <label for="linkCat">分类</label>
@@ -538,11 +596,6 @@
         </div>
       </div>
 
-      <div class="actions">
-        <button class="btn" id="cancelBtn">取消</button>
-        <button class="btn primary" id="genBtn" hidden>保存到 DATA.md</button>
-      </div>
-      <div class="ok-msg" id="okMsg"></div>
       <div class="duplicate-box" id="duplicateBox" role="alert" hidden>
         <strong id="duplicateTitle">该链接已存在</strong>
         <span>你可以打开已有条目继续研究，或明确保留一份新的副本。</span>
@@ -551,6 +604,11 @@
           <button type="button" class="btn" id="duplicateMergeBtn">合并标签与原因</button>
           <button type="button" class="btn" id="duplicateSaveBtn">仍然保存副本</button>
         </div>
+      </div>
+      <div class="ok-msg" id="okMsg"></div>
+      <div class="actions">
+        <button class="btn" id="cancelBtn">取消</button>
+        <button class="btn primary" id="genBtn" hidden>保存到 DATA.md</button>
       </div>
     </div>
   </div>

@@ -5,13 +5,17 @@ on:
     branches: [main, master]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  node-gates:
+    name: Node.js ${{ matrix.node-version }} local gates
+    runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
-        node-version: [20, 22]
+        node-version: [22, 24]
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js ${{ matrix.node-version }}
@@ -19,5 +23,56 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
       - run: npm ci
       - run: npm run check
+      - run: npm run coverage
+      - run: npm run test:scrapers:fixtures
+      - run: npm run test:e2e
+      - name: Real browser trusted-recovery E2E
+        run: |
+          python -m pip install playwright==1.58.0
+          python e2e/trusted-recovery-playwright.py
+      - run: npm run test:launcher
+      - name: T5 release contracts
+        run: npm test -- --test scripts/build-release.test.js --test scripts/build-portable.test.js --test scripts/build-executable.test.js --test scripts/smoke-executable.test.js --test scripts/recovery-drill.test.js --test scripts/release-drill.test.js
+
+  windows-candidate:
+    name: Windows package, smoke, recovery, reproducibility
+    runs-on: windows-latest
+    needs: node-gates
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: npm ci
+      - name: Recovery fault-injection drill
+        shell: powershell
+        run: .\scripts\recovery-drill.ps1 -EvidencePath "$env:RUNNER_TEMP\recovery-drill.json"
+      - name: Build candidate twice
+        shell: powershell
+        run: |
+          .\scripts\build-executable.ps1 -OutputDirectory "$env:RUNNER_TEMP\candidate-a"
+          .\scripts\build-executable.ps1 -OutputDirectory "$env:RUNNER_TEMP\candidate-b"
+      - name: Executable offline smoke
+        shell: powershell
+        run: .\scripts\smoke-executable.ps1 -ExecutablePath "$env:RUNNER_TEMP\candidate-a\linggankanban-2.2.0-windows-x64.exe"
+      - name: Fresh extraction and reproducibility drill
+        shell: powershell
+        run: .\scripts\release-drill.ps1 -ReleaseDirectory "$env:RUNNER_TEMP\candidate-a" -ComparisonDirectory "$env:RUNNER_TEMP\candidate-b" -EvidencePath "$env:RUNNER_TEMP\release-drill.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v2.2.0-windows-candidate-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/candidate-a/*
+            ${{ runner.temp }}/recovery-drill.json
+            ${{ runner.temp }}/release-drill.json
+          if-no-files-found: error
+          retention-days: 7

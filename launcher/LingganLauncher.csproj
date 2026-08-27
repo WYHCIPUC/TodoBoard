@@ -15,8 +15,10 @@
     <DebugSymbols>false</DebugSymbols>
     <AssemblyName>LingganKanban</AssemblyName>
     <RootNamespace>LingganLauncher</RootNamespace>
+    <PayloadArchive Condition="'$(PayloadArchive)' == ''">Payload.zip</PayloadArchive>
+    <DefaultItemExcludes>$(DefaultItemExcludes);bin/**;obj/**</DefaultItemExcludes>
   </PropertyGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Payload.zip" LogicalName="Linggan.Payload.zip" />
+    <EmbeddedResource Include="$(PayloadArchive)" LogicalName="Linggan.Payload.zip" />
   </ItemGroup>
 </Project>

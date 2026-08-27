@@ -3,6 +3,7 @@ using System.IO.Compression;
 using System.Net;
 using System.Reflection;
 using System.Security.Cryptography;
+using Microsoft.Win32;
 
 namespace LingganLauncher;
 
@@ -19,8 +20,16 @@ internal static class Program
 internal sealed class LauncherForm : Form
 {
     private const string PayloadResource = "Linggan.Payload.zip";
+    private readonly CancellationTokenSource lifetime = new();
     private readonly Label statusLabel;
     private readonly ProgressBar progressBar;
+    private readonly Button stopButton;
+    private Process? ownedServer;
+    private Uri? ownedServerUri;
+    private string? apiToken;
+    private bool detachServer;
+    private bool allowClose;
+    private bool closeRequested;
 
     public LauncherForm()
     {
@@ -29,7 +38,7 @@ internal sealed class LauncherForm : Form
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
-        ClientSize = new Size(440, 164);
+        ClientSize = new Size(440, 184);
         BackColor = Color.FromArgb(250, 248, 245);
         Font = new Font("Microsoft YaHei UI", 9F);
 
@@ -52,71 +61,140 @@ internal sealed class LauncherForm : Form
             Text = "正在准备内置运行环境…",
             ForeColor = Color.FromArgb(105, 96, 86),
             Location = new Point(29, 83),
-            Size = new Size(382, 22),
+            Size = new Size(382, 38),
         };
         progressBar = new ProgressBar {
             Style = ProgressBarStyle.Marquee,
             MarqueeAnimationSpeed = 25,
-            Location = new Point(29, 116),
+            Location = new Point(29, 126),
             Size = new Size(382, 7),
         };
-        Controls.AddRange([eyebrow, title, statusLabel, progressBar]);
+        stopButton = new Button {
+            AutoSize = true,
+            Text = "停止服务并退出",
+            Location = new Point(287, 145),
+            Visible = false,
+        };
+        stopButton.Click += (_, _) => Close();
+        Controls.AddRange(new Control[] { eyebrow, title, statusLabel, progressBar, stopButton });
+        FormClosing += HandleFormClosing;
         Shown += async (_, _) => await StartAsync();
     }
 
     private async Task StartAsync()
     {
+        Exception? startupError = null;
         try
         {
-            SetStatus("首次启动会自动释放程序文件，请稍候…");
-            var appDirectory = await Task.Run(PrepareApplication);
-            var dataDirectory = PrepareDataDirectory(appDirectory);
-            var port = ReadPort();
-            var url = $"http://127.0.0.1:{port}/";
-
-            SetStatus("正在检查本地服务…");
-            var doctorCode = await RunDoctorAsync(appDirectory, dataDirectory, port);
-            if (doctorCode == 2)
-            {
-                SetStatus("看板已运行，正在打开浏览器…");
-                OpenBrowserIfAllowed(url);
-                await Task.Delay(350);
-                Close();
-                return;
-            }
-            if (doctorCode != 0)
-            {
-                throw new InvalidOperationException("启动自检未通过。可能存在端口占用、数据目录不可写或程序文件不完整。");
-            }
-
-            SetStatus("正在启动服务并打开浏览器…");
-            using var server = StartServer(appDirectory, dataDirectory, port);
-            if (!await WaitForServerAsync(url, server))
-            {
-                throw new InvalidOperationException("本地服务未能在预期时间内启动。");
-            }
-            OpenBrowserIfAllowed(url);
-            await Task.Delay(350);
-            Close();
+            await RunAsync(lifetime.Token);
+        }
+        catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
+        {
+            // The user closed the launcher while it was starting or in browser fallback mode.
         }
         catch (Exception error)
+        {
+            startupError = error;
+        }
+        finally
+        {
+            if (!detachServer)
+            {
+                SetStatus("正在安全停止本地服务…");
+                await StopOwnedServerAsync();
+            }
+            allowClose = true;
+        }
+
+        if (startupError is not null && !closeRequested)
         {
             progressBar.Style = ProgressBarStyle.Continuous;
             progressBar.Value = 0;
             SetStatus("启动失败");
             MessageBox.Show(
                 this,
-                error.Message + "\n\n可重新运行本文件；如仍失败，请在 GitHub 提交问题。",
+                startupError.Message + "\n\n可重新运行本文件；如仍失败，请在 GitHub 提交问题。",
                 "灵感工作台启动失败",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error
             );
-            Close();
         }
+        if (!IsDisposed) Close();
+    }
+
+    private async Task RunAsync(CancellationToken cancellationToken)
+    {
+        SetStatus("首次启动会自动释放程序文件，请稍候…");
+        var appDirectory = await Task.Run(PrepareApplication, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        var dataDirectory = ResolveDataDirectory();
+        var port = ReadPort();
+        var serverUri = new Uri($"http://127.0.0.1:{port}/");
+
+        SetStatus("正在检查本地服务…");
+        var doctorCode = Directory.Exists(dataDirectory)
+            ? await RunDoctorAsync(appDirectory, dataDirectory, port, cancellationToken)
+            : 0;
+        if (doctorCode == 2)
+        {
+            if (NoOpenRequested()) return;
+            SetStatus("看板已运行，正在打开桌面窗口…");
+            using var existingWindow = LaunchDesktopWindow(serverUri, dataDirectory, false);
+            if (existingWindow is null) return;
+            Hide();
+            await existingWindow.WaitForExitAsync(cancellationToken);
+            return;
+        }
+        if (doctorCode != 0)
+        {
+            throw new InvalidOperationException("启动自检未通过。可能存在端口占用、数据目录不可写或程序文件不完整。");
+        }
+
+        SetStatus("正在启动本地服务…");
+        apiToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+        ownedServerUri = serverUri;
+        ownedServer = StartServer(appDirectory, dataDirectory, port, apiToken);
+        if (!await WaitForServerAsync(serverUri, ownedServer, cancellationToken))
+        {
+            throw new InvalidOperationException("本地服务未能在预期时间内启动。");
+        }
+
+        if (NoOpenRequested())
+        {
+            DetachOwnedServer();
+            return;
+        }
+
+        SetStatus("正在打开独立桌面窗口…");
+        using var desktopWindow = LaunchDesktopWindow(serverUri, dataDirectory, true);
+        if (desktopWindow is null)
+        {
+            progressBar.Style = ProgressBarStyle.Continuous;
+            progressBar.Value = 0;
+            stopButton.Visible = true;
+            SetStatus("已在默认浏览器打开；关闭此启动器即可安全停止本地服务。");
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return;
+        }
+
+        Hide();
+        await desktopWindow.WaitForExitAsync(cancellationToken);
+    }
+
+    private void HandleFormClosing(object? sender, FormClosingEventArgs eventArgs)
+    {
+        if (allowClose) return;
+        eventArgs.Cancel = true;
+        if (closeRequested) return;
+        closeRequested = true;
+        stopButton.Enabled = false;
+        SetStatus("正在关闭灵感工作台…");
+        lifetime.Cancel();
     }
 
     private void SetStatus(string text)
     {
+        if (IsDisposed) return;
         statusLabel.Text = text;
         statusLabel.Refresh();
     }
@@ -211,7 +289,7 @@ internal sealed class LauncherForm : Form
         return directory;
     }
 
-    private static string PrepareDataDirectory(string appDirectory)
+    private static string ResolveDataDirectory()
     {
         var dataDirectory = Environment.GetEnvironmentVariable("LINGGAN_DATA_DIR");
         if (string.IsNullOrWhiteSpace(dataDirectory))
@@ -222,13 +300,6 @@ internal sealed class LauncherForm : Form
             );
         }
         dataDirectory = Path.GetFullPath(dataDirectory);
-        Directory.CreateDirectory(dataDirectory);
-        Directory.CreateDirectory(Path.Combine(dataDirectory, "entries"));
-        var dataFile = Path.Combine(dataDirectory, "DATA.md");
-        if (!File.Exists(dataFile))
-        {
-            File.Copy(Path.Combine(appDirectory, "DATA.example.md"), dataFile);
-        }
         return dataDirectory;
     }
 
@@ -239,7 +310,18 @@ internal sealed class LauncherForm : Form
             : 3865;
     }
 
-    private static ProcessStartInfo NodeStartInfo(string appDirectory, string dataDirectory, int port, string script)
+    private static bool NoOpenRequested()
+    {
+        return Environment.GetEnvironmentVariable("LINGGAN_NO_OPEN") == "1";
+    }
+
+    private static ProcessStartInfo NodeStartInfo(
+        string appDirectory,
+        string dataDirectory,
+        int port,
+        string script,
+        string? token = null
+    )
     {
         var info = new ProcessStartInfo {
             FileName = Path.Combine(appDirectory, "runtime", "node.exe"),
@@ -249,50 +331,214 @@ internal sealed class LauncherForm : Form
         };
         info.ArgumentList.Add(script);
         info.Environment["PORT"] = port.ToString();
+        info.Environment["HOST"] = "127.0.0.1";
         info.Environment["README_FILE"] = Path.Combine(dataDirectory, "DATA.md");
         info.Environment["ENTRIES_DIR"] = Path.Combine(dataDirectory, "entries");
         info.Environment["AUDIT_LOG_FILE"] = Path.Combine(dataDirectory, ".linggan", "audit.log");
         info.Environment["NO_OPEN"] = "1";
+        if (!string.IsNullOrEmpty(token)) info.Environment["LINGGAN_API_TOKEN"] = token;
         return info;
     }
 
-    private static async Task<int> RunDoctorAsync(string appDirectory, string dataDirectory, int port)
+    private static async Task<int> RunDoctorAsync(
+        string appDirectory,
+        string dataDirectory,
+        int port,
+        CancellationToken cancellationToken
+    )
     {
         var info = NodeStartInfo(appDirectory, dataDirectory, port, Path.Combine("scripts", "doctor.js"));
         info.ArgumentList.Add("--startup");
         using var process = Process.Start(info) ?? throw new InvalidOperationException("无法运行启动自检。");
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-        await process.WaitForExitAsync(timeout.Token);
-        return process.ExitCode;
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(30));
+        try
+        {
+            await process.WaitForExitAsync(timeout.Token);
+            return process.ExitCode;
+        }
+        catch (OperationCanceledException)
+        {
+            TryStopProcess(process);
+            throw;
+        }
     }
 
-    private static Process StartServer(string appDirectory, string dataDirectory, int port)
+    private static Process StartServer(string appDirectory, string dataDirectory, int port, string token)
     {
-        var info = NodeStartInfo(appDirectory, dataDirectory, port, "server.js");
+        var info = NodeStartInfo(appDirectory, dataDirectory, port, "server.js", token);
         return Process.Start(info) ?? throw new InvalidOperationException("无法启动本地服务。");
     }
 
-    private static async Task<bool> WaitForServerAsync(string url, Process server)
+    private static async Task<bool> WaitForServerAsync(Uri uri, Process server, CancellationToken cancellationToken)
     {
         using var client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(700) };
         for (var attempt = 0; attempt < 30; attempt++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (server.HasExited) return false;
             try
             {
-                using var response = await client.GetAsync(url);
+                using var response = await client.GetAsync(uri, cancellationToken);
                 if (response.StatusCode == HttpStatusCode.OK) return true;
             }
             catch (HttpRequestException) { }
-            catch (TaskCanceledException) { }
-            await Task.Delay(300);
+            catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested) { }
+            await Task.Delay(300, cancellationToken);
         }
         return false;
     }
 
-    private static void OpenBrowserIfAllowed(string url)
+    private Process? LaunchDesktopWindow(Uri uri, string dataDirectory, bool ownsServer)
     {
-        if (Environment.GetEnvironmentVariable("LINGGAN_NO_OPEN") == "1") return;
-        Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        var edgePath = FindEdgeExecutable();
+        if (edgePath is null)
+        {
+            OpenDefaultBrowser(uri, dataDirectory, ownsServer, null);
+            return null;
+        }
+
+        try
+        {
+            var profileDirectory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "LingganKanban",
+                "edge-profile"
+            );
+            Directory.CreateDirectory(profileDirectory);
+            var info = new ProcessStartInfo {
+                FileName = edgePath,
+                WorkingDirectory = Path.GetDirectoryName(edgePath)!,
+                UseShellExecute = false,
+            };
+            info.ArgumentList.Add("--app=" + uri.AbsoluteUri);
+            info.ArgumentList.Add("--user-data-dir=" + profileDirectory);
+            info.ArgumentList.Add("--no-first-run");
+            info.ArgumentList.Add("--no-default-browser-check");
+            info.ArgumentList.Add("--disable-background-mode");
+            return Process.Start(info) ?? throw new InvalidOperationException("Microsoft Edge 未返回桌面窗口进程。");
+        }
+        catch (Exception error)
+        {
+            OpenDefaultBrowser(uri, dataDirectory, ownsServer, error);
+            return null;
+        }
+    }
+
+    private void OpenDefaultBrowser(Uri uri, string dataDirectory, bool ownsServer, Exception? edgeError)
+    {
+        Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true })?.Dispose();
+        var reason = edgeError is null
+            ? "未找到 Microsoft Edge。"
+            : "Microsoft Edge 无法创建桌面窗口：" + edgeError.Message;
+        var lifecycle = ownsServer
+            ? "\n\n已改用系统默认浏览器。此启动器会继续运行；关闭启动器即可安全停止本地服务。"
+            : "\n\n已改用系统默认浏览器。";
+        Show();
+        Activate();
+        MessageBox.Show(
+            this,
+            reason + lifecycle + "\n\n数据仍保存在：" + dataDirectory,
+            "灵感工作台 · 浏览器兼容模式",
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Warning
+        );
+    }
+
+    private static string? FindEdgeExecutable()
+    {
+        var candidates = new List<string?> {
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Microsoft", "Edge", "Application", "msedge.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Microsoft", "Edge", "Application", "msedge.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Edge", "Application", "msedge.exe"),
+        };
+        candidates.Add(ReadEdgeFromRegistry(RegistryHive.CurrentUser, RegistryView.Default));
+        candidates.Add(ReadEdgeFromRegistry(RegistryHive.LocalMachine, RegistryView.Registry64));
+        candidates.Add(ReadEdgeFromRegistry(RegistryHive.LocalMachine, RegistryView.Registry32));
+        return candidates
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Select(path => path!.Trim().Trim('"'))
+            .Where(path => string.Equals(Path.GetFileName(path), "msedge.exe", StringComparison.OrdinalIgnoreCase))
+            .FirstOrDefault(File.Exists);
+    }
+
+    private static string? ReadEdgeFromRegistry(RegistryHive hive, RegistryView view)
+    {
+        try
+        {
+            using var baseKey = RegistryKey.OpenBaseKey(hive, view);
+            using var key = baseKey.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\msedge.exe");
+            return key?.GetValue(null) as string;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private void DetachOwnedServer()
+    {
+        detachServer = true;
+        ownedServer?.Dispose();
+        ownedServer = null;
+        ownedServerUri = null;
+        apiToken = null;
+    }
+
+    private async Task StopOwnedServerAsync()
+    {
+        var server = ownedServer;
+        ownedServer = null;
+        if (server is null) return;
+
+        try
+        {
+            if (server.HasExited) return;
+            var accepted = false;
+            if (ownedServerUri is not null && !string.IsNullOrEmpty(apiToken))
+            {
+                try
+                {
+                    using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+                    using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(ownedServerUri, "api/control/shutdown"));
+                    request.Headers.TryAddWithoutValidation("X-Linggan-Token", apiToken);
+                    using var response = await client.SendAsync(request);
+                    accepted = response.StatusCode == HttpStatusCode.Accepted;
+                }
+                catch (HttpRequestException) { }
+                catch (TaskCanceledException) { }
+            }
+
+            if (!server.HasExited)
+            {
+                using var timeout = new CancellationTokenSource(accepted ? TimeSpan.FromSeconds(5) : TimeSpan.FromSeconds(1));
+                try
+                {
+                    await server.WaitForExitAsync(timeout.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    TryStopProcess(server);
+                }
+            }
+        }
+        finally
+        {
+            server.Dispose();
+            ownedServerUri = null;
+            apiToken = null;
+        }
+    }
+
+    private static void TryStopProcess(Process process)
+    {
+        try
+        {
+            if (!process.HasExited) process.Kill(true);
+        }
+        catch
+        {
+            // Only the exact child process started by this launcher is targeted.
+        }
     }
 }

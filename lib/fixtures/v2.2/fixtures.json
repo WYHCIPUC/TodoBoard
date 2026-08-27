@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "immutable": true,
+  "fixtures": [
+    {"path":"archive/content.md","sha256":"0c36f0e52e01d6ba3f172ac8dce1fa91d70806653bba1895ec8f8f07e595d565","contract":"archive content bytes used by manifest validation"},
+    {"path":"archive/manifest.json","sha256":"85dd5db1b25e0f762a22358a8ed53847f387da8b4f49a499cc7a54489c0ebfde","contract":"valid archive manifest v1 with canonical file ordering"},
+    {"path":"archive/metadata.json","sha256":"f947988059719dad26ebaf69a84276e2f93c23e98cfc4e43695f1505974e68c7","contract":"archive metadata schema v2 cross-linked to manifest"},
+    {"path":"bundles/duplicate-v2.json","sha256":"23d0d448450c283292b067c8f1d0344750579104945a978a226b30f60de67d80","contract":"v2 duplicate canonical path is invalid_bundle"},
+    {"path":"bundles/legacy-v1.json","sha256":"57ab939bdb0c75884cf8332f2a0b76fa71ca09fcb5f6747ec8aa0b548818746e","contract":"legacy v1 backup is detected as supported compatibility input"},
+    {"path":"bundles/malformed-v2.json","sha256":"6b9e605f3c7923cff6dfb0cdbb2fa7af79be45f9698535e9fbdfef9dce62fa61","contract":"parseable but structurally malformed v2 is invalid_bundle"},
+    {"path":"bundles/truncated-v2.json","sha256":"6fce4a4eeb56249d74d3743310979dc2e26cf2c1f5fc97234b3cb625064f0e96","contract":"truncated write cannot be parsed or accepted"},
+    {"path":"bundles/valid-v2.json","sha256":"548160066fdd3fb2887cd81ebf68934e5486766bca77945c34abd1d6fac45a81","contract":"canonical v2 backup detection succeeds"},
+    {"path":"coverage-contract.json","sha256":"6a33bffeeaba2024d3d9fa86a2c4f7dbf4dd92a32ac962cf467176098c2a3fce","contract":"per-file 90 percent gate fails despite passing aggregate"},
+    {"path":"lifecycle/attention-cases.json","sha256":"1b47d0c4b61e2328b7e2a68ae4de3a7661adede2c2d974c8098432777faae3f4","contract":"fixed-clock 7 14 30 day boundaries and six reason priorities"},
+    {"path":"limits/capacity.json","sha256":"5c4335a28c7421fcf415dfc14acb19decfc34faa25ff1ccfb984ea9cc0901110","contract":"capacity limits use MiB and accept equality only"},
+    {"path":"reason-codes.json","sha256":"f67d722aadd9827642f908af974c9d0b2d09d7bf73f7afa6de3989745c516b80","contract":"frozen attention archive orphan and HTTP reason-code sets"},
+    {"path":"runner/child-crash.test.js","sha256":"b5f7373c56fafbffe3945feb1cfdf1de787aa31dd63dc982526316670350dd9c","contract":"child crash produces deterministic test-failure exit"},
+    {"path":"runner/路径 空格.test.js","sha256":"e43d2769f20c28a82569dc6890465a75cae601b56528ec86355788fa5cb9bfd5","contract":"Unicode and spaced test path receives isolated README_FILE"},
+    {"path":"transactions/directory-target-manifest.json","sha256":"e0fed4b321710028b4d0f3bcdea102bd62255d3b31d99d0e43a65ba85c6f2d99","contract":"directory target manifest uses file inventory union"},
+    {"path":"transactions/file-target-manifest.json","sha256":"6ae6eee384699003136b238fb1460bdc16122ade29c8593c844c6e0c9cd28a6d","contract":"file target manifest omits directory-only fields"},
+    {"path":"transactions/interrupted-write.json","sha256":"2afd9fde3e5d7909a6117ed9562db9a2b79ccbb501384162eff38f4c698d5503","contract":"committing journal with old_ready target requires recovery convergence"},
+    {"path":"transactions/recovery-candidates.json","sha256":"534325e0a3eb05373097e7f146dca737536718a74e65d063004804d0cc0aca4c","contract":"verified complete old generation is explicit confirmed candidate"}
+  ]
+}

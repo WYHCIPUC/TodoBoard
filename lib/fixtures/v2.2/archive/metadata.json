@@ -1,0 +1,1 @@
+{"archiveSchemaVersion":2,"snapshotId":"123e4567-e89b-42d3-a456-426614174000","entry":{"uid":"11111111-1111-4111-8111-111111111111","id":"1","url":"https://example.invalid/fixture","title":"Contract archive"},"capture":{"state":"succeeded","authority":"official_raw","manual":false,"capturedAt":"2026-08-14T00:00:00.000Z","source":"contract fixture"},"migrationWarnings":[]}

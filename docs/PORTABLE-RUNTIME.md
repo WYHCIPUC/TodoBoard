@@ -1,47 +1,47 @@
 # Windows 单文件与便携运行时
 
-Windows 10/11 x64 用户可以从 GitHub Release 下载 `linggankanban-2.1.0-windows-portable-x64.zip`，解压后双击 `start-portable.bat`；人工购买交付的 `linggankanban-2.1.0-windows-x64.exe` 可直接双击。两种成品都不要求安装 Node.js。
+v2.2.0 提供 `linggankanban-2.2.0-windows-portable-x64.zip` 与 `linggankanban-2.2.0-windows-x64.exe`。两者内置同一套 Windows x64 运行环境，不要求用户安装 Node.js；源码方式需要 Node.js 22 或 24，Node.js 20 不受支持。
 
-## 构建内容
+## 固定运行时
 
-- 官方 Node.js 22.23.2 Windows x64 运行时。
-- `package-lock.json` 锁定的生产依赖。
-- Windows 自包含 `.NET 8` 单文件启动器，负责释放、诊断和启动本地服务。
-- `start-portable.bat` 一键启动器。
-- Node.js 完整许可证：`runtime/NODE-LICENSE.txt`。
-- 运行时来源与 SHA-256：`runtime/RUNTIME-NOTICE.txt`。
+运行时唯一来源是 `scripts/runtime-node.json`：Node.js 24.16.0、官方 Windows x64 ZIP、ZIP SHA-256 与解包后 `node.exe` SHA-256 均固定在候选提交中。构建不会查询 `latest` 或在运行时解释在线校验表；下载内容与任一固定哈希不符即停止。
 
-构建脚本会下载官方 ZIP 与 `SHASUMS256.txt`，只有 SHA-256 完全匹配时才继续打包。单文件 EXE 嵌入由同一流程生成的便携包，因此不会使用用户机器上未知版本的 Node.js。
+便携包包含：
 
-## 单文件版运行方式
+- `runtime/node.exe`、`runtime/NODE-LICENSE.txt` 与 `runtime/RUNTIME-NOTICE.txt`；
+- `package-lock.json` 对应的生产依赖；
+- 为内置 Node.js 24 ABI 构建的 `build/Release/volume_lock.node`；
+- `start-portable.bat`、应用源码和 v2.2 恢复 CLI。
 
-- 首次运行将程序释放到 `%LOCALAPPDATA%\LingganKanban\app\<内容哈希>`，后续启动直接复用已验证的缓存。
-- 用户数据默认写入 `%USERPROFILE%\Documents\LingganKanban`，与程序缓存分离；升级或删除缓存不会删除收藏与研究档案。
-- 已有服务运行时，再次双击只会打开现有看板，不会启动第二个服务。
-- 启动失败会显示可读错误信息，不再依赖命令行窗口。
-- 当前 EXE 未进行商业代码签名，人工交付时应同时提供 Release 中的 `SHA256SUMS.txt`，并只使用可信下载地址。
+## 数据边界
 
-## 构建
+单文件 EXE 将程序缓存放在 `%LOCALAPPDATA%\LingganKanban\app\<内容哈希>`，数据默认放在 `%USERPROFILE%\Documents\LingganKanban`。替换 EXE 或清理程序缓存不会删除数据。便携版和源码版默认在应用目录保存数据；可用 `README_FILE`、`ENTRIES_DIR` 等变量显式改到独立数据目录。
 
-```powershell
-npm run package:portable
-npm run package:exe
-```
+发布包绝不包含 `DATA.md`、用户备份、`.linggan/`、`docs/entries/`、归档队列、日志、Cookie、令牌、企业微信/钉钉密钥、隧道配置、旧压缩包或视频。
 
-重复覆盖现有版本时：
+## 可复现构建
+
+在全新的输出目录构建；不要对旧目录使用覆盖参数：
 
 ```powershell
-npm run package:portable -- -Force
-npm run package:exe -- -Force
+$out = Join-Path $env:TEMP ("linggankanban-2.2.0-" + [guid]::NewGuid().ToString("N"))
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-executable.ps1 -OutputDirectory $out
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/smoke-executable.ps1 -ExecutablePath (Join-Path $out "linggankanban-2.2.0-windows-x64.exe")
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/release-drill.ps1 -ReleaseDirectory $out
 ```
 
-构建 EXE 需要 Windows、.NET 8 SDK，以及对 Node.js 官方发布站点和 npm registry 的网络访问。缓存的 Node ZIP 每次都会重新对照官方 SHA-256。
+构建只从 `scripts/release-allowlist.txt` 复制普通文件，拒绝缺失、额外、链接、路径穿越和敏感内容。ZIP 条目按路径排序并统一为 1980-01-01 时间戳。`SHA256SUMS.txt` 名称固定、UTF-8 无 BOM、使用 LF；上传前必须在全新解压目录重新核对清单、运行时和所有哈希。
 
-## 更新策略
+构建需要 Windows、PowerShell 5.1+、.NET 8 SDK、Node.js 官方下载站和 npm registry。构建联网不代表应用必须联网：离线门禁使用不可达代理启动已解压成品，并验证本地读写、健康检查和恢复状态。
 
-- 每次公开发布都重新构建便携包，不从旧包复制运行时或依赖。
-- Node.js 22.x 出现安全更新时，更新 `scripts/build-portable.ps1` 的默认版本并重新验证。
-- 便携包当前仅支持 Windows x64；ARM64 与 macOS/Linux 继续使用源码方式，除非有真实用户需求。
-- 运行时不会写入注册表或系统 PATH。删除 `%LOCALAPPDATA%\LingganKanban` 可移除程序缓存；用户数据需要单独确认后再删除。
+## 更新与校验
 
-官方来源：[Node.js 22.23.2 发布说明](https://nodejs.org/en/blog/release/v22.23.2/)。
+升级运行时必须修改 `scripts/runtime-node.json` 的全部固定字段，重新运行两次干净构建并比较所有产物。用户可在下载目录运行：
+
+```powershell
+Get-Content .\SHA256SUMS.txt
+Get-FileHash .\linggankanban-2.2.0-windows-portable-x64.zip -Algorithm SHA256
+Get-FileHash .\linggankanban-2.2.0-windows-x64.exe -Algorithm SHA256
+```
+
+只有与 `SHA256SUMS.txt` 完全一致的资产才可使用。

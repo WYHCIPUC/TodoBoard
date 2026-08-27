@@ -1,8 +1,8 @@
 {
   "name": "linggankanban",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "private": true,
-  "description": "灵感来袭：本地优先的链接收集、研究与待办看板",
+  "description": "灵感工作台：本地优先的链接收集、研究与决策工作台",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -12,12 +12,15 @@
     "package:exe": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-executable.ps1",
     "build:demo": "node scripts/build-demo.js",
     "test": "node scripts/run-tests.js",
+    "test:scrapers:fixtures": "node scripts/run-tests.js --test-dir lib/scraper",
+    "test:e2e": "node e2e/browser-smoke.js",
+    "test:launcher": "node scripts/run-tests.js --test scripts/build-executable.test.js",
     "test:integration": "node scripts/run-scraper-tests.js",
-    "coverage": "c8 --clean --all --check-coverage --per-file --lines 90 --functions 90 --statements 90 --branches 90 --include=lib/archive.js --include=lib/archive-queue.js --include=lib/scraper/github.js --include=lib/scraper/x.js node -e \"require('./lib/archive.test.js'); require('./lib/archive-queue.test.js'); require('./lib/scraper/github.test.js'); require('./lib/scraper/x.test.js')\"",
+    "coverage": "c8 --include=scripts/run-tests.js --include=lib/backup.js --include=lib/backup-format.js --include=lib/backup-transaction.js --include=lib/maintenance.js --include=lib/archive-content.js --include=lib/archive-quality.js --include=lib/archive-integrity.js --include=lib/attention.js --include=lib/schema.js --include=lib/store.js --include=lib/archive.js --include=lib/archive-queue.js --include=lib/capture.js --include=lib/search.js --include=lib/brainstorm.js node scripts/run-tests.js",
     "check": "node --check server.js && node --check board.js && node scripts/run-tests.js"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "license": "MIT",
   "keywords": [

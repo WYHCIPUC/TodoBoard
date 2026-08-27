@@ -1,8 +1,10 @@
 # 灵感来袭 2.0 公开 Beta 全面升级实施计划
 
-**状态**：已确认，待实施<br>
+**状态**：历史实施计划；2.0/2.1 已完成主要基础项，未完成内容以当前原则对照重新排期<br>
 **对应 PRD**：`docs/product-upgrade-prd.md`<br>
 **目标版本**：`2.0.0-beta.1`
+
+> 当前长期原则见 `docs/PROJECT-PRINCIPLES.md`；截至 2026-08-14 的缺口与后续顺序见 `docs/plans/2026-08-14-principles-gap-analysis.md`。本文件保留当时决策背景，不再作为当前完成状态清单。
 
 ## 1. 实施原则
 

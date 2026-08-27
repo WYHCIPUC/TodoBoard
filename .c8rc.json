@@ -1,0 +1,14 @@
+{
+  "all": true,
+  "clean": true,
+  "check-coverage": true,
+  "per-file": true,
+  "lines": 90,
+  "statements": 90,
+  "functions": 90,
+  "branches": 90,
+  "reporter": [
+    "text",
+    "text-summary"
+  ]
+}
