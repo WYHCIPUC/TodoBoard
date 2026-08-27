@@ -68,7 +68,9 @@ function Assert-Manifest {
   if ($actual.Count -ne $manifest.files.Count) { throw "Fresh extraction file count does not match $ManifestPath." }
   $actualByPath = [Collections.Generic.Dictionary[string, object]]::new([StringComparer]::Ordinal)
   foreach ($item in $actual) {
-    if (-not $actualByPath.TryAdd($item.path, $item)) { throw "Fresh extraction contains a duplicate path: $($item.path)." }
+    $itemPath = [string]$item.path
+    if ($actualByPath.ContainsKey($itemPath)) { throw "Fresh extraction contains a duplicate path: $itemPath." }
+    $actualByPath.Add($itemPath, $item)
   }
   foreach ($expected in $manifest.files) {
     $item = $null

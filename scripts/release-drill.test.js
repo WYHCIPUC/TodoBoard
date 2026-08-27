@@ -26,5 +26,8 @@ for (const marker of [
 assert.match(drill, /Name -cne "SHA256SUMS\.txt"/);
 assert.match(drill, /T5_SENTINEL_SECRET/);
 assert.match(drill, /ReparsePoint/);
+assert.ok(!drill.includes(".TryAdd("), "release drill must remain compatible with Windows PowerShell 5.1");
+assert.match(drill, /actualByPath\.ContainsKey/);
+assert.match(drill, /actualByPath\.Add/);
 
 console.log("✓ T5 release drill contract tests passed");
