@@ -40,8 +40,11 @@
         <button type="button" class="product-nav-item active" id="inspirationNav" data-product-view="inspiration" aria-label="打开灵感来袭工作台" aria-pressed="true">
           <span class="product-nav-step" aria-hidden="true">01</span><span><strong>灵感来袭</strong><small>收集与研究</small></span>
         </button>
+        <button type="button" class="product-nav-item" id="relationshipNav" data-product-view="relationship" aria-label="打开知识关系画布" aria-pressed="false">
+          <span class="product-nav-step" aria-hidden="true">02</span><span><strong>关系画布</strong><small>整理与溯源</small></span>
+        </button>
         <button type="button" class="product-nav-item" id="brainstormBtn" data-product-view="brainstorm" aria-label="打开头脑风暴工作台" aria-pressed="false">
-          <span class="product-nav-step" aria-hidden="true">02</span><span><strong>头脑风暴</strong><small>关联与决策</small></span>
+          <span class="product-nav-step" aria-hidden="true">03</span><span><strong>头脑风暴</strong><small>融合与决策</small></span>
         </button>
       </nav>
       <div class="search">
@@ -129,6 +132,83 @@
   </section>
 
   <main class="main">
+    <section id="relationshipView" class="relationship-workspace" hidden aria-labelledby="relationshipTitle">
+      <aside class="relationship-sidebar" aria-label="关系图导航与筛选">
+        <div class="relationship-rail-heading">
+          <span>研究空间</span>
+          <strong>我的知识库</strong>
+        </div>
+        <nav class="relationship-scope" aria-label="关系图范围">
+          <button type="button" data-relationship-scope="inbox" aria-pressed="false"><span>收件箱</span><b id="relationshipInboxCount">0</b></button>
+          <button type="button" class="active" data-relationship-scope="all" aria-pressed="true"><span>关系图</span><b id="relationshipAllCount">0</b></button>
+          <button type="button" data-relationship-scope="review" aria-pressed="false"><span>回顾</span><b id="relationshipReviewCount">0</b></button>
+        </nav>
+        <div class="relationship-filter-group">
+          <div class="relationship-filter-title"><strong>来源类型</strong><button type="button" id="relationshipSourceReset">重置</button></div>
+          <div class="relationship-filter-list" id="relationshipSourceFilters" aria-label="按来源类型筛选"></div>
+        </div>
+        <div class="relationship-filter-group">
+          <div class="relationship-filter-title"><strong>归档状态</strong></div>
+          <div class="relationship-filter-list" id="relationshipArchiveFilters" aria-label="按归档状态筛选">
+            <button type="button" class="active" data-relationship-archive="all" aria-pressed="true"><span>全部</span><b id="relationshipArchiveAll">0</b></button>
+            <button type="button" data-relationship-archive="saved" aria-pressed="false"><span>已留存</span><b id="relationshipArchiveSaved">0</b></button>
+            <button type="button" data-relationship-archive="attention" aria-pressed="false"><span>待处理</span><b id="relationshipArchiveAttention">0</b></button>
+          </div>
+        </div>
+        <section class="relationship-local-card" aria-label="本地数据状态">
+          <strong>数据仅保存在本机</strong>
+          <span id="relationshipLocalStatus">正在读取本地档案状态</span>
+          <button type="button" id="relationshipDataBtn">备份与恢复</button>
+        </section>
+      </aside>
+
+      <section class="relationship-center" aria-labelledby="relationshipTitle">
+        <header class="relationship-canvas-header">
+          <div>
+            <span class="relationship-kicker">LOCAL EVIDENCE MAP</span>
+            <h1 id="relationshipTitle">知识关系画布</h1>
+            <p id="relationshipSummary">从本地条目中寻找共振、互补与验证路径。</p>
+          </div>
+          <div class="relationship-header-actions">
+            <span id="relationshipAnalysisState" role="status" aria-live="polite">等待分析</span>
+            <button type="button" class="btn" id="relationshipRefreshBtn">更新分析</button>
+          </div>
+        </header>
+        <div class="relationship-viewport" id="relationshipViewport" tabindex="0" aria-label="知识关系画布。滚轮缩放，拖动画布，拖动卡片整理位置。">
+          <div class="relationship-scene" id="relationshipScene">
+            <svg class="relationship-links" id="relationshipLinks" viewBox="0 0 1160 1060" preserveAspectRatio="none" aria-hidden="true"></svg>
+            <div class="relationship-zones" id="relationshipZones"></div>
+            <div class="relationship-nodes" id="relationshipNodes" role="list" aria-label="知识节点"></div>
+          </div>
+          <div class="relationship-empty" id="relationshipEmpty" role="status">正在整理本地关系…</div>
+          <div class="relationship-map-controls" aria-label="画布缩放">
+            <button type="button" id="relationshipZoomOut" aria-label="缩小画布">−</button>
+            <span id="relationshipZoomLabel">100%</span>
+            <button type="button" id="relationshipZoomIn" aria-label="放大画布">＋</button>
+            <button type="button" id="relationshipResetView">适应</button>
+          </div>
+          <div class="relationship-minimap" id="relationshipMinimap" aria-hidden="true"></div>
+          <div class="relationship-canvas-hint">拖动卡片整理关系 · 拖动画布浏览 · 双击空白处适应视图</div>
+        </div>
+        <div class="relationship-action-dock" aria-label="关系图操作">
+          <button type="button" id="relationshipAddBtn">添加来源</button>
+          <button type="button" id="relationshipNoteBtn">写下判断</button>
+          <button type="button" class="primary" id="relationshipVerifyBtn">形成验证方案</button>
+          <button type="button" id="relationshipArrangeBtn">整理关系</button>
+        </div>
+      </section>
+
+      <aside class="relationship-detail" id="relationshipDetail" aria-labelledby="relationshipDetailTitle">
+        <header>
+          <div><span>来源详情</span><strong id="relationshipDetailTitle">选择一个节点</strong></div>
+          <button type="button" id="relationshipDetailClose" aria-label="收起来源详情">×</button>
+        </header>
+        <div class="relationship-detail-body" id="relationshipDetailBody">
+          <div class="relationship-detail-empty">点击画布中的来源、判断或待验证事项，查看本地留存状态和关系依据。</div>
+        </div>
+      </aside>
+    </section>
+
     <section id="brainstormView" class="brainstorm-workspace" hidden aria-labelledby="brainstormTitle">
       <header class="brainstorm-hero">
         <div class="brainstorm-hero-copy">
@@ -365,6 +445,7 @@
         <div class="hk"><kbd>R</kbd><span>随机抽取研究</span></div>
         <div class="hk"><kbd>E</kbd><span>沉浸研究当前行</span></div>
         <div class="hk"><kbd>S</kbd><span>统计洞察</span></div>
+        <div class="hk"><kbd>G</kbd><span>知识关系画布</span></div>
         <div class="hk"><kbd>B</kbd><span>头脑风暴</span></div>
         <div class="hk"><kbd>Ctrl</kbd> <kbd>K</kbd><span>打开快捷指令</span></div>
         <div class="hk"><kbd>/</kbd><span>聚焦搜索框</span></div>

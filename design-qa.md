@@ -2,40 +2,42 @@
 
 ## Visual baseline
 
-- Source visual truth: `assets/readme/showcase-list.png` (1252 × 700 px, legacy JPEG payload, nominal 1× density).
-- Browser implementation: `docs/qa/ui-polish-desktop-final.png` (1398 × 993 px) from a 1440 × 1000 CSS viewport at `devicePixelRatio: 1`.
-- State: light theme, list view, nine disposable sample entries, local-only QA data.
-- Density normalization: this is a design-language upgrade rather than a pixel clone. The source and implementation were resized into the same 1440 × 500 comparison canvas; no 2× downsampling was required.
+- Source visual truth: `docs/qa/relationship-reference.webp` (1488 × 1058 px).
+- Browser implementation: `docs/qa/relationship-desktop-final.png` (1440 × 1024 px, 1× density).
+- State: light theme, relationship view, highest-degree node selected, disposable `DATA.example.md` fixture, local service online.
+- Comparison normalization: the source was resized to 1440 × 1024; the implementation was captured at the same CSS viewport.
 
 ## Comparison evidence
 
-- Full view: `docs/qa/ui-polish-desktop-comparison.png` places the source and implementation in one image for hierarchy, spacing, color, typography, and card-system review.
-- Focused desktop flow: `docs/qa/ui-polish-entry.png` (1190 × 893 px; 1200 × 900 CSS viewport) verifies the research archive and screenshot region.
-- Brainstorm workspace: `docs/qa/ui-polish-brainstorm.png` (1190 × 1330 px full-page capture; 1200 × 900 CSS viewport).
-- Responsive focus: `docs/qa/ui-polish-mobile-390.png` (380 × 822 px from 390 × 844 CSS) and `docs/qa/ui-polish-mobile-320.png` (310 × 678 px from 320 × 700 CSS), both at 1× density.
+- Full view: `docs/qa/relationship-design-comparison.png` compares hierarchy, layout, typography, color, and density side by side.
+- Canvas focus: `docs/qa/relationship-canvas-comparison.png` compares zones, nodes, links, selection, and action dock.
+- Detail focus: `docs/qa/relationship-detail-comparison.png` compares source metadata, archive state, backlinks, and actions.
+- Responsive focus: `docs/qa/relationship-mobile-390-final.png` verifies the centered selected node and collapsed detail drawer at 390 × 844 px.
 
 ## Findings
 
-- No actionable P0, P1, or P2 visual/interaction issue remains.
-- The warm-white, terracotta, editorial-card language is retained. The denser two-stage product navigation and workspace hero are intentional departures from the older statistics-heavy source.
-- Typography, spacing rhythm, semantic status colors, image fitting, and primary copy surfaces remain legible without clipping at the tested breakpoints.
-- P3 follow-up: the accumulated legacy CSS override layers could be consolidated later; packaged Edge app-mode visuals still merit a separate OS-level screenshot regression.
+- No actionable P0, P1, or P2 visual or interaction issue remains.
+- The implementation retains the source's warm editorial shell, three evidence territories, selected center node, right-side source detail, minimap, and floating action dock.
+- Real local entries replace the reference's illustrative question/conclusion cards. Filters and archive state reflect repository-supported data rather than invented content.
+- Typography, spacing, colors, controls, and copy remain legible without clipping at the tested desktop and mobile viewports.
+- P3 follow-up: relationship-type edge labels and color coding could make dense datasets easier to scan.
 
 ## Comparison history
 
-### Iteration 1 — pre-build audit
+### Iteration 1
 
-- Findings: strict CSP blocked inline card actions; stale archive requests could overwrite the active entry; screenshot refresh could discard unsaved fields; study exit could lose notes or leave the timer running; menus retained hidden focus targets; card rows stretched; selection controls and semantic colors lacked visibility; the 320 px header was overcrowded; restored trash records remained visible.
-- Fixes: delegated all inline actions, added abort/sequence guards and local screenshot refresh, introduced an explicit save/discard/continue exit guard, synchronized menu `hidden`/`inert`/focus state, corrected card alignment and contrast, added a two-row compact header, and made trash restore idempotent.
-- Post-fix evidence: desktop comparison, entry view, and both responsive captures listed above.
+- Findings: nodes were too small, the left zone could clip, unrelated nodes faded excessively, and the canvas left too much unused vertical space.
+- Fixes: increased node size and type scale, constrained fitted pan, raised muted opacity, enlarged the canvas, and extended all three territories.
 
-### Iteration 2 — browser verification
+### Iteration 2
 
-- Search with no matches hides the daily recommendation; clearing search restores it.
-- Study timer advanced to 24:59, stopped on exit, showed the unsaved-note guard, and restored the persisted note after discard.
-- Screenshot upload preserved an unsaved form marker while updating only the screenshot list.
-- Theme menu closed with focus restored; typing `?` inside search did not open shortcuts.
-- Brainstorm tabs support Arrow keys and End, update roving `tabindex`, panel visibility, selection state, and `aria-labelledby`.
-- Mobile layouts had no horizontal overflow at 390 px or 320 px. Browser warning/error log: empty.
+- Findings: the strongest cluster was not centered; mobile initially opened the detail panel and did not focus the selected node.
+- Fixes: ranked clusters by degree, placed the strongest in the center, centered the selected node on narrow screens, and defaulted the mobile detail panel to collapsed.
+
+## Interaction verification
+
+- Verified source and archive filters, node selection, pan, zoom, drag, persisted positions, minimap, research archive round-trip, and “形成验证方案”.
+- Stopping the local service and refreshing analysis preserved nine nodes through the explicit “已使用离线基础关系” fallback.
+- Desktop and mobile browser logs contained no warnings or errors.
 
 final result: passed
