@@ -1,6 +1,6 @@
 # Windows 单文件与便携运行时
 
-v2.2.0 提供 `linggankanban-2.2.0-windows-portable-x64.zip` 与 `linggankanban-2.2.0-windows-x64.exe`。两者内置同一套 Windows x64 运行环境，不要求用户安装 Node.js；源码方式需要 Node.js 22 或 24，Node.js 20 不受支持。
+v2.3.0 提供 `linggankanban-2.3.0-windows-portable-x64.zip` 与 `linggankanban-2.3.0-windows-x64.exe`。两者内置同一套 Windows x64 运行环境，不要求用户安装 Node.js；源码方式需要 Node.js 22 或 24，Node.js 20 不受支持。
 
 ## 固定运行时
 
@@ -11,7 +11,7 @@ v2.2.0 提供 `linggankanban-2.2.0-windows-portable-x64.zip` 与 `linggankanban-
 - `runtime/node.exe`、`runtime/NODE-LICENSE.txt` 与 `runtime/RUNTIME-NOTICE.txt`；
 - `package-lock.json` 对应的生产依赖；
 - 为内置 Node.js 24 ABI 构建的 `build/Release/volume_lock.node`；
-- `start-portable.bat`、应用源码和 v2.2 恢复 CLI。
+- `start-portable.bat`、应用源码和恢复 CLI。
 
 ## 数据边界
 
@@ -24,9 +24,9 @@ v2.2.0 提供 `linggankanban-2.2.0-windows-portable-x64.zip` 与 `linggankanban-
 在全新的输出目录构建；不要对旧目录使用覆盖参数：
 
 ```powershell
-$out = Join-Path $env:TEMP ("linggankanban-2.2.0-" + [guid]::NewGuid().ToString("N"))
+$out = Join-Path $env:TEMP ("linggankanban-2.3.0-" + [guid]::NewGuid().ToString("N"))
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-executable.ps1 -OutputDirectory $out
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/smoke-executable.ps1 -ExecutablePath (Join-Path $out "linggankanban-2.2.0-windows-x64.exe")
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/smoke-executable.ps1 -ExecutablePath (Join-Path $out "linggankanban-2.3.0-windows-x64.exe")
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/release-drill.ps1 -ReleaseDirectory $out
 ```
 
@@ -40,8 +40,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/release-drill.ps1 -R
 
 ```powershell
 Get-Content .\SHA256SUMS.txt
-Get-FileHash .\linggankanban-2.2.0-windows-portable-x64.zip -Algorithm SHA256
-Get-FileHash .\linggankanban-2.2.0-windows-x64.exe -Algorithm SHA256
+Get-FileHash .\linggankanban-2.3.0-windows-portable-x64.zip -Algorithm SHA256
+Get-FileHash .\linggankanban-2.3.0-windows-x64.exe -Algorithm SHA256
 ```
 
 只有与 `SHA256SUMS.txt` 完全一致的资产才可使用。

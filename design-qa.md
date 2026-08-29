@@ -3,41 +3,46 @@
 ## Visual baseline
 
 - Source visual truth: `docs/qa/relationship-reference.webp` (1488 × 1058 px).
-- Browser implementation: `docs/qa/relationship-desktop-final.png` (1440 × 1024 px, 1× density).
+- Browser implementation: `docs/qa/ui-continuation-desktop-final.png` (1440 × 1024 px, 1440 × 1024 CSS viewport, 1× density).
 - State: light theme, relationship view, highest-degree node selected, disposable `DATA.example.md` fixture, local service online.
-- Comparison normalization: the source was resized to 1440 × 1024; the implementation was captured at the same CSS viewport.
+- Density normalization: the source was resized to 1440 × 1024 before comparison; no device-frame or browser-chrome mismatch was included.
 
 ## Comparison evidence
 
-- Full view: `docs/qa/relationship-design-comparison.png` compares hierarchy, layout, typography, color, and density side by side.
-- Canvas focus: `docs/qa/relationship-canvas-comparison.png` compares zones, nodes, links, selection, and action dock.
-- Detail focus: `docs/qa/relationship-detail-comparison.png` compares source metadata, archive state, backlinks, and actions.
-- Responsive focus: `docs/qa/relationship-mobile-390-final.png` verifies the centered selected node and collapsed detail drawer at 390 × 844 px.
+- Full design comparison: `docs/qa/ui-continuation-design-comparison.webp`.
+- Focused canvas comparison: `docs/qa/ui-continuation-canvas-comparison.webp`.
+- Focused detail comparison: `docs/qa/ui-continuation-detail-comparison.webp`.
+- Before/after evidence: `docs/qa/ui-continuation-improvement-comparison.webp`.
+- Responsive evidence: `docs/qa/ui-continuation-mobile-final.png` at 390 × 844 px and `docs/qa/ui-continuation-mobile-detail.png` with the detail drawer open.
 
 ## Findings
 
 - No actionable P0, P1, or P2 visual or interaction issue remains.
-- The implementation retains the source's warm editorial shell, three evidence territories, selected center node, right-side source detail, minimap, and floating action dock.
-- Real local entries replace the reference's illustrative question/conclusion cards. Filters and archive state reflect repository-supported data rather than invented content.
-- Typography, spacing, colors, controls, and copy remain legible without clipping at the tested desktop and mobile viewports.
-- P3 follow-up: relationship-type edge labels and color coding could make dense datasets easier to scan.
+- Fonts and typography: the existing display/body/mono hierarchy remains intact; long detail titles now wrap to two lines and node text remains readable at the 72% mobile fit.
+- Spacing and layout: stale dragged positions no longer overlap, nodes stay inside their semantic relationship zone, and detail actions remain reachable in a fixed footer.
+- Colors and tokens: the warm editorial shell is unchanged; selected and related nodes use clearer emphasis, while edge colors distinguish theme, source, portfolio, and capability relationships.
+- Image quality and assets: this surface contains data visualization and native controls rather than raster content; no target logo, illustration, or product imagery was replaced or omitted.
+- Copy and content: zone labels describe relationship roles instead of implying that every contained node shares one category; real item categories remain visible on each node.
+- P3 follow-up: very dense datasets may eventually benefit from adaptive canvas height or progressive cluster expansion.
 
 ## Comparison history
 
-### Iteration 1
+### Iteration 1 — collision and action hierarchy
 
-- Findings: nodes were too small, the left zone could clip, unrelated nodes faded excessively, and the canvas left too much unused vertical space.
-- Fixes: increased node size and type scale, constrained fitted pan, raised muted opacity, enlarged the canvas, and extended all three territories.
+- Findings: restored node positions overlapped on desktop and mobile; unrelated nodes faded too heavily; relationship type was only discoverable through details; the detail action group floated above a large empty area.
+- Fixes: added collision recovery and drop rejection, raised muted-node visibility, labeled active edges, highlighted related nodes, and moved detail actions into a fixed footer.
+- Post-fix evidence: `docs/qa/ui-continuation-improvement-comparison.webp` and `docs/qa/ui-continuation-mobile-detail.png`.
 
-### Iteration 2
+### Iteration 2 — semantic grouping
 
-- Findings: the strongest cluster was not centered; mobile initially opened the detail panel and did not focus the selected node.
-- Fixes: ranked clusters by degree, placed the strongest in the center, centered the selected node on narrow screens, and defaulted the mobile detail panel to collapsed.
+- Findings: manually dragged nodes could remain inside a visually unrelated category zone, making the zone title contradict the node category.
+- Fixes: constrained saved and dropped positions to their assigned zone and renamed zones to relationship roles: 关联来源、重点关系、探索补充.
+- Post-fix evidence: `docs/qa/ui-continuation-desktop-final.png` and `docs/qa/ui-continuation-mobile-final.png`.
 
 ## Interaction verification
 
-- Verified source and archive filters, node selection, pan, zoom, drag, persisted positions, minimap, research archive round-trip, and “形成验证方案”.
-- Stopping the local service and refreshing analysis preserved nine nodes through the explicit “已使用离线基础关系” fallback.
-- Desktop and mobile browser logs contained no warnings or errors.
+- Verified mobile detail open/close, GitHub filtering to three nodes, reset to nine nodes, zoom from 74% to 83%, fit reset, selected-node detail, and responsive reflow.
+- Reloading the pre-fix saved layout automatically removed overlaps and restored zone consistency without changing primary data.
+- Browser error log was empty. `DATA.md`, dependency files, and backend data formats were not modified.
 
 final result: passed

@@ -1,4 +1,4 @@
-# v2.2.0 release input contract. Paths use forward slashes and are relative to
+# v2.3.0 release input contract. Paths use forward slashes and are relative to
 # the repository root. "source" entries must be regular, non-linked files.
 # "portable" entries are created only inside the isolated portable stage.
 
@@ -22,6 +22,7 @@ source assets/readme/hero.svg
 source assets/readme/showcase-board.png
 source assets/readme/showcase-brainstorm.png
 source assets/readme/showcase-list.png
+source assets/readme/showcase-relationship.png
 source docs/BETA-USER-TEST.md
 source docs/DINGTALK-GUIDE.md
 source docs/PORTABLE-RUNTIME.md
@@ -29,6 +30,7 @@ source docs/RELEASE-CHECKLIST.md
 source docs/WECOM-GUIDE.md
 source docs/WINDOWS-GUIDE.md
 source docs/releases/v2.2.0.md
+source docs/releases/v2.3.0.md
 source lib/archive-content.js
 source lib/archive-integrity.js
 source lib/archive-quality.js

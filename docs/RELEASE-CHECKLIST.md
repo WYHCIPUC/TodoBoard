@@ -1,4 +1,4 @@
-# v2.2.0 发布检查清单
+# v2.3.0 发布检查清单
 
 本清单 fail-closed。任何本地门禁失败、证据变化或远端规则不明都停止发布；不得 force-push、绕过保护或使用旧产物替代。`DATA.md`、备份、凭据、旧包、视频和无关未跟踪文件始终不在发布范围。
 
@@ -24,7 +24,7 @@ npm test -- --test scripts/build-release.test.js --test scripts/build-portable.t
 
 - [ ] Windows 10/11 x64 全新用户分别验证单文件 EXE 与便携 ZIP，无需系统 Node.js。
 - [ ] 中文/空格路径、普通用户权限、端口占用、活动锁、旧实例仍可能运行、无 Edge 回退均给出可操作诊断。
-- [ ] v2.1 数据副本升级到 v2.2；核对 `DATA.md`、条目 UID、笔记、正文、截图和归档证据。
+- [ ] v2.1 / v2.2 数据副本升级到 v2.3；核对 `DATA.md`、条目 UID、笔记、正文、截图和归档证据。
 - [ ] 核对 `.linggan/migration-backups/` 与 `.linggan/upgrade-snapshots/`；回滚只对显式副本/快照执行，绝不以仓库 `DATA.md` 作夹具。
 - [ ] 断网时本地浏览、搜索、备份、恢复预检仍可用；抓取失败保留已保存 URL 和现有内容。
 
@@ -33,9 +33,9 @@ npm test -- --test scripts/build-release.test.js --test scripts/build-portable.t
 - [ ] `gh auth login` 后，`gh auth status` 对预期 host/account 成功且权限足够。
 - [ ] 用 `gh repo view --json nameWithOwner,defaultBranchRef` 记录精确仓库与默认分支。
 - [ ] 用 rulesets、branch protection 和 tag protection API 记录所需 review、checks、签名、线性历史、部署和 tag 限制。
-- [ ] 确认候选 commit 满足规则，远端 `v2.2.0` tag 和 Release 均不存在。
-- [ ] 审查 `git diff --cached --name-status`、精确 tag target、五个资产和 `SHA256SUMS.txt`；取得最终人工批准。
+- [ ] 确认候选 commit 满足规则，远端 `v2.3.0` tag 和 Release 均不存在。
+- [ ] 审查 `git diff --cached --name-status`、精确 tag target、安装资产、两版介绍视频和 `SHA256SUMS.txt`。
 - [ ] 仅在以上全部保持绿色后，按可观察的独立步骤 push commit、等待远端 checks、创建 tag、创建 draft Release、上传并回读资产、最后公开。
 - [ ] 若 tag 后失败，按仓库批准的补偿流程删除未公开 Release、删除本次 tag 并 GET ref 确认 404；补偿失败标记 `release_recovery_required` 并停止自动重试。
 
-当前本地任务禁止认证、push、tag、Release、stage 和 commit，因此本节必须原样保持 Pending。
+只有所有本地门禁和远端检查保持绿色，才公开稳定版；任何失败都保留证据并停止发布。

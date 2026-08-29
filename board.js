@@ -412,8 +412,10 @@ function renderList(list) {
     let t = "暂无匹配条目", d = "试试调整筛选或搜索关键词";
     if (state.query.trim()) { t = "搜索无结果"; d = `没找到匹配「${state.query.trim()}」的项目`; }
     else if (state.category) { t = "该分类下暂无条目"; d = `「${state.category}」分类下还没有项目`; }
-    else if (state.items.length === 0) { t = "清单是空的"; d = "暂无任何条目，去新增第一个吧"; }
-    el.innerHTML = `<div class="empty"><div class="em-t">${escapeHtml(t)}</div><div class="em-d">${escapeHtml(d)}</div></div>`;
+    else if (state.items.length === 0) { t = "从第一条收藏开始"; d = "粘贴一个链接，工作台会先保存线索，再自动解析和留存内容。"; }
+    const captureAction = state.items.length === 0 && state.httpMode
+      ? '<button type="button" class="btn primary empty-capture" data-empty-capture>＋ 收藏第一条内容</button>' : "";
+    el.innerHTML = `<div class="empty"><div class="em-t">${escapeHtml(t)}</div><div class="em-d">${escapeHtml(d)}</div>${captureAction}</div>`;
     return;
   }
 // 分组折叠：按分类折叠的行隐藏
@@ -441,9 +443,9 @@ function renderList(list) {
   if (state.listAnim) {
     el.classList.add("anim");
     el.querySelectorAll(".row").forEach((r, i) => {
-      r.style.animationDelay = Math.min(i, 5) * 22 + "ms";
+      r.style.animationDelay = Math.min(i, 5) * 16 + "ms";
       const panel = r.nextElementSibling;
-      if (panel && panel.classList.contains("detail-panel")) panel.style.animationDelay = Math.min(i, 5) * 22 + "ms";
+      if (panel && panel.classList.contains("detail-panel")) panel.style.animationDelay = Math.min(i, 5) * 16 + "ms";
     });
     state.listAnim = false;
   } else {
@@ -503,6 +505,7 @@ function renderBoard(list) {
     ? list.map(cardHtml).join("") : `<div class="empty">暂无匹配条目</div>`;
 }
 
+let lastBannerMotionKey = null;
 function renderBanner(list) {
   const inner = document.getElementById("bannerInner");
   const cat = state.category;
@@ -516,8 +519,8 @@ function renderBanner(list) {
     document.getElementById("bannerTitle").textContent = cat;
     document.getElementById("bannerSub").textContent = `查看该分类中的 ${list.length} 个项目，继续研究或带入头脑风暴`;
   } else {
-    document.getElementById("bannerTitle").textContent = "灵感项目库";
-    document.getElementById("bannerSub").textContent = "收集值得研究的项目，在这里整理、推进并沉淀结论";
+    document.getElementById("bannerTitle").textContent = "灵感来袭";
+    document.getElementById("bannerSub").textContent = "先把灵感可靠收进来，再在本机整理、研究并推进为结论";
   }
   document.getElementById("brainstormBridgeLabel").textContent = cat
     ? `基于“${cat}”项目生成方案`
@@ -531,15 +534,24 @@ function renderBanner(list) {
   document.getElementById("bannerNum").innerHTML = `${list.length}<small>ITEMS</small>`;
   document.getElementById("bannerProgressLabel").textContent = `研究推进 ${progress}%`;
   document.getElementById("bannerProgressMeta").textContent = progress === 0 ? "从一条灵感开始" : progress === 100 ? "本组已全部完成" : `${nd + nf} / ${list.length} 已推进`;
-  document.getElementById("bannerProgressBar").style.width = progress + "%";
+  document.getElementById("bannerProgressBar").style.setProperty("--progress", String(progress / 100));
   document.getElementById("bannerProgressTrack").setAttribute("aria-valuenow", String(progress));
-  // 切换分类时重触发入场动画
+  // 仅在分类真正变化时重播，避免每次数据刷新都强制同步布局。
   const bwrap = inner.querySelector(".bwrap");
-  if (bwrap) {
-    bwrap.classList.remove("replay");
-    void bwrap.offsetWidth;
-    bwrap.classList.add("replay");
+  const motionKey = cat || "__all__";
+  if (bwrap && lastBannerMotionKey !== null && lastBannerMotionKey !== motionKey && !prefersReduce()) {
+    [...bwrap.children].forEach((child, index) => {
+      child.getAnimations().forEach(animation => animation.cancel());
+      child.animate(
+        [
+          { opacity: 0, transform: "translateY(8px)" },
+          { opacity: 1, transform: "translateY(0)" },
+        ],
+        { duration: 220, delay: index * 24, easing: "cubic-bezier(0.23, 1, 0.32, 1)" }
+      );
+    });
   }
+  lastBannerMotionKey = motionKey;
 }
 
 function syncSlider() {
@@ -552,17 +564,25 @@ function syncSlider() {
 }
 
 /* 统计数字滚动动画 */
+const numberAnimationFrames = new WeakMap();
 function animateNum(el, target) {
   const cur = parseInt(el.textContent.replace(/\D/g, ""), 10) || 0;
   if (cur === target) return;
-  const t0 = performance.now(), dur = 500;
+  const previousFrame = numberAnimationFrames.get(el);
+  if (previousFrame) cancelAnimationFrame(previousFrame);
+  if (prefersReduce()) {
+    el.textContent = target;
+    return;
+  }
+  const t0 = performance.now(), dur = 220;
   function tick(t) {
     const p = Math.min(1, (t - t0) / dur);
     const e = 1 - Math.pow(1 - p, 3);
     el.textContent = Math.round(cur + (target - cur) * e);
-    if (p < 1) requestAnimationFrame(tick);
+    if (p < 1) numberAnimationFrames.set(el, requestAnimationFrame(tick));
+    else numberAnimationFrames.delete(el);
   }
-  requestAnimationFrame(tick);
+  numberAnimationFrames.set(el, requestAnimationFrame(tick));
 }
 
 function completionProgress(total, done, doing) {
@@ -571,11 +591,6 @@ function completionProgress(total, done, doing) {
 
 function render() {
   const list = filtered();
-
-  // 视图切换 fade（让切换有过渡感）
-  const visibleView = [...document.querySelectorAll("#listView, #boardView, #relationshipView")].find(e => !e.hidden);
-  if (visibleView) visibleView.classList.add("view-fade");
-  const doRender = () => {
   const nTotal = list.length;
   const nPending = list.filter(i => i.status === "pending").length;
   const nDoing = list.filter(i => i.status === "doing").length;
@@ -586,7 +601,7 @@ function render() {
   animateNum(document.getElementById("nDoing"), nDoing);
   animateNum(document.getElementById("nDone"), nDone);
   document.getElementById("subTotal").textContent = `共 ${nTotal} 条 · 完成 ${progress}%`;
-  document.getElementById("progressBar").style.width = progress + "%";
+  document.getElementById("progressBar").style.setProperty("--progress", String(progress / 100));
   document.getElementById("progressTrack").setAttribute("aria-valuenow", String(progress));
 
   const isBoard = state.view === "board";
@@ -606,9 +621,6 @@ function render() {
   syncPicked();
   updateSortHead();
   refreshMotionVisibility();
-    if (visibleView) visibleView.classList.remove("view-fade");
-  };
-  requestAnimationFrame(doRender);
 }
 
 /* ============================================================
@@ -617,6 +629,9 @@ function render() {
 let toastTimer = null;
 function toast(msg, type) {
   const el = document.getElementById("toast");
+  const urgent = type === "err";
+  el.setAttribute("role", urgent ? "alert" : "status");
+  el.setAttribute("aria-live", urgent ? "assertive" : "polite");
   el.textContent = msg;
   el.className = "toast " + (type || "ok") + " show";
   clearTimeout(toastTimer);
@@ -646,6 +661,25 @@ async function localApiFetch(url, options = {}) {
   if (!renewed.ok) return response;
   response = await fetch(url, normalized);
   return response;
+}
+
+function setButtonBusy(button, busy, label) {
+  if (!button) return;
+  if (busy) {
+    if (!Object.prototype.hasOwnProperty.call(button.dataset, "idleLabel")) {
+      button.dataset.idleLabel = button.textContent;
+    }
+    if (label) button.textContent = label;
+    button.disabled = true;
+    button.setAttribute("aria-busy", "true");
+    return;
+  }
+  if (Object.prototype.hasOwnProperty.call(button.dataset, "idleLabel")) {
+    button.textContent = button.dataset.idleLabel;
+    delete button.dataset.idleLabel;
+  }
+  button.removeAttribute("aria-busy");
+  button.disabled = false;
 }
 
 let trustedStatus = normalizeTrustedState({ state: "in_progress" });
@@ -819,8 +853,11 @@ function setServiceState(status) {
   dot.classList.add(current.dot);
   document.body.classList.toggle("is-readonly", !state.httpMode);
   document.body.classList.toggle("is-demo", state.demoMode);
-  const addButton = document.getElementById("addBtn");
-  if (addButton) addButton.disabled = !state.httpMode;
+  document.querySelectorAll("[data-capture-trigger]").forEach(button => {
+    if (!button.dataset.captureTitle) button.dataset.captureTitle = button.title || "收藏内容";
+    button.disabled = !state.httpMode;
+    button.title = state.httpMode ? button.dataset.captureTitle : "需要连接本地服务后收藏内容";
+  });
   const brainstormSaveButton = document.getElementById("brainstormSaveBtn");
   if (brainstormSaveButton) brainstormSaveButton.disabled = !state.httpMode || !brainstormLastAnalysis;
   document.querySelectorAll("#bulkbar button").forEach(button => { button.disabled = !state.httpMode; });
@@ -873,9 +910,9 @@ function updateEmpty() {
   const d = document.getElementById("emptyDesc");
   const btn = document.getElementById("emptyPickBtn");
   if (state.httpMode) {
-    t.textContent = "清单是空的";
-    d.textContent = "暂无任何条目。点「新增」粘贴一个链接，30 秒内开始你的灵感收集。";
-    btn.textContent = "新增第一条";
+    t.textContent = "从第一条收藏开始";
+    d.textContent = "粘贴链接后会先保存线索，再自动解析并创建本地内容备份。";
+    btn.textContent = "收藏第一条内容";
   } else {
     t.textContent = `加载 ${state.dataName} 开始`;
     d.textContent = `不要直接双击 board.html。便携版请双击 start-portable.bat，源码版请双击 start.bat；也可以在下方手动选择 Markdown 文件只读浏览。`;
@@ -997,6 +1034,7 @@ async function demoLoad() {
     document.getElementById("footerFile").textContent = "DEMO · 公共示例数据";
     document.getElementById("reloadBtn").textContent = "重置 Demo";
     const goal = document.getElementById("brainstormGoal");
+    goal.value = "从示例项目中组合一套可验证的本地研究工作流";
     goal.readOnly = true;
     goal.title = "在线 Demo 使用预置分析目标；下载本地版可自由分析自己的项目库";
     document.querySelectorAll("[data-brainstorm-goal]").forEach(button => { button.disabled = true; });
@@ -1524,6 +1562,13 @@ document.addEventListener("keydown", e => {
 /* 动效生命周期：页面隐藏或区块离屏时暂停，避免长期后台占用。 */
 const prefersReduce = () => window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 let motionObserver = null;
+const surfaceMotionFrames = new WeakMap();
+document.addEventListener("keydown", () => {
+  document.documentElement.dataset.input = "keyboard";
+}, true);
+document.addEventListener("pointerdown", () => {
+  document.documentElement.dataset.input = "pointer";
+}, true);
 function refreshMotionVisibility() {
   if (!motionObserver || prefersReduce()) return;
   document.querySelectorAll(".topbar, #banner, #daily, #toolrow, #emptyState, #listView, #boardView, #relationshipView, #brainstormView").forEach(element => {
@@ -1534,10 +1579,14 @@ function refreshMotionVisibility() {
   });
 }
 function restartSurfaceMotion(element) {
-  if (!element || prefersReduce()) return;
+  if (!element || prefersReduce() || document.documentElement.dataset.input === "keyboard") return;
+  const previousFrame = surfaceMotionFrames.get(element);
+  if (previousFrame) cancelAnimationFrame(previousFrame);
   element.classList.remove("product-view-enter");
-  void element.offsetWidth;
-  element.classList.add("product-view-enter");
+  surfaceMotionFrames.set(element, requestAnimationFrame(() => {
+    element.classList.add("product-view-enter");
+    surfaceMotionFrames.delete(element);
+  }));
 }
 if ("IntersectionObserver" in window) {
   motionObserver = new IntersectionObserver(entries => {
@@ -1600,7 +1649,7 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) reset
 const modal = document.getElementById("modal");
 let draftDiff = 1;
 
-document.getElementById("addBtn").addEventListener("click", () => {
+function openCaptureModal() {
   if (!state.httpMode) { toast("请先启动服务（双击 start.bat）", "err"); return; }
   document.getElementById("fetchUrl").value = "";
   document.getElementById("linkName").value = "";
@@ -1630,6 +1679,10 @@ document.getElementById("addBtn").addEventListener("click", () => {
   });
   modal.classList.add("open");
   setTimeout(() => document.getElementById("fetchUrl").focus(), 80);
+}
+document.querySelectorAll("[data-capture-trigger]").forEach(button => button.addEventListener("click", openCaptureModal));
+document.getElementById("listView").addEventListener("click", event => {
+  if (event.target.closest("[data-empty-capture]")) openCaptureModal();
 });
 
 document.getElementById("cancelBtn").addEventListener("click", () => modal.classList.remove("open"));
@@ -1648,6 +1701,7 @@ document.getElementById("starPicker").addEventListener("click", e => {
 async function fetchMetaFromUrl() {
   const url = document.getElementById("fetchUrl").value.trim();
   if (!/^https?:\/\//i.test(url)) { showFetchErr("请粘贴有效的 http(s) 链接"); return; }
+  const button = document.getElementById("fetchBtn");
   document.getElementById("fetchUrl").removeAttribute("aria-invalid");
   document.getElementById("fetchErr").classList.remove("show");
   document.getElementById("fetchWarn").classList.remove("show");
@@ -1655,7 +1709,7 @@ async function fetchMetaFromUrl() {
   document.getElementById("editForm").hidden = true;
   document.getElementById("genBtn").hidden = true;
   document.getElementById("fetchLoad").classList.add("show");
-  document.getElementById("fetchBtn").disabled = true;
+  setButtonBusy(button, true, "识别中…");
   try {
     const r = await localApiFetch("/api/fetch-meta?url=" + encodeURIComponent(url), { cache: "no-store" });
     const d = await r.json();
@@ -1695,7 +1749,7 @@ async function fetchMetaFromUrl() {
     showFetchErr("识别失败：" + e.message);
   } finally {
     document.getElementById("fetchLoad").classList.remove("show");
-    document.getElementById("fetchBtn").disabled = false;
+    setButtonBusy(button, false);
   }
 }
 function showFetchErr(msg) {
@@ -1716,8 +1770,7 @@ let duplicateId = null;
 
 async function saveDraft(payload) {
   const btn = document.getElementById("genBtn");
-  btn.disabled = true;
-  btn.textContent = "写入中…";
+  setButtonBusy(btn, true, "写入中…");
   document.getElementById("duplicateBox").hidden = true;
   try {
     const r = await localApiFetch("/api/add", {
@@ -1744,18 +1797,19 @@ async function saveDraft(payload) {
     duplicateId = null;
     state.lastNewId = d.id;
     toast(`已写入 ${state.dataName}（${d.id} · ${d.category}）`, "ok");
-    particleBurst(innerWidth / 2, innerHeight - 140);
     await httpLoad();
     try {
-      const cnt = parseInt(document.getElementById("nTotal").textContent, 10) || 0;
-      if (cnt > 0 && cnt % 5 === 0) setTimeout(() => toast(`第 ${cnt} 个收藏，里程碑达成`, "ok"), 800);
+      const cnt = state.items.length;
+      if (cnt > 0 && cnt % 5 === 0) {
+        particleBurst(innerWidth / 2, innerHeight - 140);
+        setTimeout(() => toast(`第 ${cnt} 个收藏，里程碑达成`, "ok"), 800);
+      }
     } catch (_) {}
     setTimeout(() => modal.classList.remove("open"), 700);
   } catch (e) {
     toast("写入失败：" + e.message, "err");
   } finally {
-    btn.disabled = false;
-    btn.textContent = "保存到 DATA.md";
+    setButtonBusy(btn, false);
   }
 }
 
@@ -1798,7 +1852,7 @@ document.getElementById("duplicateSaveBtn").addEventListener("click", async () =
 document.getElementById("duplicateMergeBtn").addEventListener("click", async () => {
   if (!duplicateDraft || !duplicateId) return;
   const button = document.getElementById("duplicateMergeBtn");
-  button.disabled = true;
+  setButtonBusy(button, true, "合并中…");
   try {
     const response = await localApiFetch("/api/merge", {
       method: "POST",
@@ -1854,9 +1908,12 @@ function renderDaily(items = filtered()) {
   const item = dailyPick(items);
   if (!item) { box.hidden = true; return; }
   box.hidden = false;
-  box.classList.remove("appear");
-  void box.offsetWidth;
-  box.classList.add("appear");
+  const motionKey = String(item.id);
+  if (box.dataset.motionItem !== motionKey) {
+    box.classList.remove("appear");
+    requestAnimationFrame(() => box.classList.add("appear"));
+    box.dataset.motionItem = motionKey;
+  }
   const cover = document.getElementById("dCover");
   cover.classList.remove(...CATS.map(c => c.cls));
   cover.classList.add(catCls(item.category));
@@ -1869,13 +1926,13 @@ function renderDaily(items = filtered()) {
     `<span class="badge cat ${catCls(item.category)}">${escapeHtml(item.category)}</span><span class="badge diff">${"★".repeat(item.difficulty || 1)}</span><span class="status st-${item.status}">${statusLabel(item)}</span>`;
   document.getElementById("dailyStart").onclick = async e => {
     const button = e.currentTarget;
-    button.disabled = true;
-    if (item.status === "pending" && !await updateItemStatus(item, "doing")) {
-      button.disabled = false;
-      return;
+    setButtonBusy(button, true, "准备中…");
+    try {
+      if (item.status === "pending" && !await updateItemStatus(item, "doing")) return;
+      openStudy(item);
+    } finally {
+      setButtonBusy(button, false);
     }
-    button.disabled = false;
-    openStudy(item);
   };
   document.getElementById("dailySkip").onclick = () => { state.dailyShown.add(item.id); renderDaily(filtered()); };
   box.dataset.curId = item.id;
@@ -1901,7 +1958,7 @@ function particleBurst(x, y) {
     p.style.setProperty("--py", (Math.random() * -120 - 20).toFixed(0) + "px");
     p.style.animationDelay = (Math.random() * 0.12).toFixed(2) + "s";
     field.appendChild(p);
-    setTimeout(() => p.remove(), 1200);
+    setTimeout(() => p.remove(), 520);
   }
 }
 
@@ -1920,6 +1977,7 @@ function syncPicked() {
   });
   const n = picked.size;
   document.getElementById("bulkbar").classList.toggle("show", n > 0);
+  document.body.classList.toggle("bulk-active", n > 0);
   document.getElementById("bulkCount").textContent = `已选 ${n} 项`;
 }
 document.getElementById("listView").addEventListener("change", e => {
@@ -2182,11 +2240,10 @@ function relationshipHydrateGraph(graph) {
 
 function relationshipFilteredGraph() {
   const graph = relationshipState.analysis || relationshipFallbackGraph(state.items);
-  const allowed = new Set(filtered().map(item => item.id));
   const itemById = new Map(state.items.map(item => [item.id, item]));
   let nodes = graph.nodes.filter(node => {
     const item = itemById.get(node.id);
-    if (!item || !allowed.has(node.id)) return false;
+    if (!item) return false;
     if (relationshipState.scope === "inbox" && item.status !== "pending") return false;
     if (relationshipState.scope === "review" && item.status !== "done") return false;
     if (relationshipState.source !== "all" && relationshipSourceType(item) !== relationshipState.source) return false;
@@ -2197,20 +2254,24 @@ function relationshipFilteredGraph() {
     if (a.id === relationshipState.selectedId) return -1;
     if (b.id === relationshipState.selectedId) return 1;
     return (b.degree || 0) - (a.degree || 0) || a.id.localeCompare(b.id, "en", { numeric: true });
-  }).slice(0, 24);
+  }).slice(0, 21);
   const ids = new Set(nodes.map(node => node.id));
   const edges = graph.edges.filter(edge => ids.has(edge.source) && ids.has(edge.target));
   return { nodes, edges, total: graph.nodes.length };
 }
 
 function relationshipLayout(nodes) {
-  const buckets = [[], [], []];
-  nodes.forEach(node => {
-    const cluster = Number(node.cluster) || catNo(node.category);
-    buckets[Math.abs(cluster - 1) % buckets.length].push(node);
-  });
+  const ranked = [...nodes].sort((a, b) => (b.degree || 0) - (a.degree || 0) || a.id.localeCompare(b.id, "en", { numeric: true }));
+  const laneSize = Math.ceil(ranked.length / 3);
+  const buckets = [
+    ranked.slice(laneSize, laneSize * 2),
+    ranked.slice(0, laneSize),
+    ranked.slice(laneSize * 2),
+  ];
   const zones = [];
   const positions = new Map();
+  const occupied = [];
+  let adjusted = false;
   const orderedBuckets = buckets.filter(members => members.length).sort((a, b) => {
     const aDegree = Math.max(...a.map(node => node.degree || 0));
     const bDegree = Math.max(...b.map(node => node.degree || 0));
@@ -2220,11 +2281,13 @@ function relationshipLayout(nodes) {
   orderedBuckets.forEach((members, orderIndex) => {
     const column = columnOrder[orderIndex] == null ? orderIndex : columnOrder[orderIndex];
     members.sort((a, b) => (b.degree || 0) - (a.degree || 0) || a.id.localeCompare(b.id, "en", { numeric: true }));
-    const categoryCount = new Map();
-    members.forEach(node => categoryCount.set(node.category, (categoryCount.get(node.category) || 0) + 1));
-    const title = [...categoryCount.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    const zoneMeta = [
+      { title: "关联来源", color: "#2c9b73" },
+      { title: "重点关系", color: "#8b5cf6" },
+      { title: "探索补充", color: "#e6506e" },
+    ][column];
     const x = 25 + column * 375;
-    const zone = { id: column, title, color: catColor(title), x, y: 58, width: 340, height: 930 };
+    const zone = { id: column, title: zoneMeta.title, count: members.length, color: zoneMeta.color, x, y: 58, width: 340, height: 930, nodeIds: new Set(members.map(node => node.id)) };
     zones.push(zone);
     const step = members.length > 1 ? Math.min(185, Math.floor(730 / (members.length - 1))) : 0;
     members.forEach((node, index) => {
@@ -2233,14 +2296,41 @@ function relationshipLayout(nodes) {
         x: x + 22 + (index % 2) * 70,
         y: 112 + index * step,
       };
-      const point = saved || natural;
-      positions.set(node.id, {
-        x: Math.max(10, Math.min(RELATIONSHIP_CANVAS.width - RELATIONSHIP_CANVAS.nodeWidth - 10, point.x)),
-        y: Math.max(10, Math.min(RELATIONSHIP_CANVAS.height - RELATIONSHIP_CANVAS.nodeHeight - 10, point.y)),
-      });
+      const candidates = [];
+      if (saved && relationshipPointInsideZone(saved, zone)) candidates.push(saved);
+      else if (saved) adjusted = true;
+      candidates.push(natural);
+      for (let slot = 0; slot < Math.max(8, members.length + 3); slot++) {
+        candidates.push({ x: x + 22 + (slot % 2) * 70, y: 112 + slot * 132 });
+      }
+      const point = candidates.map(relationshipClampPoint).find(candidate => !occupied.some(other => relationshipPointsOverlap(candidate, other))) || relationshipClampPoint(natural);
+      if (saved && (Math.abs(point.x - saved.x) > 1 || Math.abs(point.y - saved.y) > 1)) adjusted = true;
+      positions.set(node.id, point);
+      occupied.push(point);
     });
   });
-  return { positions, zones };
+  return { positions, zones, adjusted };
+}
+
+function relationshipClampPoint(point) {
+  return {
+    x: Math.max(10, Math.min(RELATIONSHIP_CANVAS.width - RELATIONSHIP_CANVAS.nodeWidth - 10, Number(point.x) || 0)),
+    y: Math.max(10, Math.min(RELATIONSHIP_CANVAS.height - RELATIONSHIP_CANVAS.nodeHeight - 10, Number(point.y) || 0)),
+  };
+}
+
+function relationshipPointInsideZone(point, zone) {
+  return point.x >= zone.x + 12
+    && point.x <= zone.x + zone.width - RELATIONSHIP_CANVAS.nodeWidth - 12
+    && point.y >= zone.y + 42
+    && point.y <= zone.y + zone.height - RELATIONSHIP_CANVAS.nodeHeight - 12;
+}
+
+function relationshipPointsOverlap(a, b, gap = 16) {
+  return a.x < b.x + RELATIONSHIP_CANVAS.nodeWidth + gap
+    && a.x + RELATIONSHIP_CANVAS.nodeWidth + gap > b.x
+    && a.y < b.y + RELATIONSHIP_CANVAS.nodeHeight + gap
+    && a.y + RELATIONSHIP_CANVAS.nodeHeight + gap > b.y;
 }
 
 function relationshipNodeLabel(node) {
@@ -2297,8 +2387,11 @@ function relationshipRenderLinks(graph) {
     if (!a || !b) return "";
     const related = selected && (edge.source === selected || edge.target === selected);
     const muted = selected && !related;
-    const cls = `relationship-link${related ? " is-related" : ""}${muted ? " is-muted" : ""}`;
-    return `<path class="${cls}" data-relationship-edge="${index}" d="${relationshipPath(a, b)}"><title>${escapeHtml((edge.relation || "关联") + " · " + (edge.signals || []).join(" / "))}</title></path>`;
+    const relation = edge.relation || "关联";
+    const type = (edge.types || [])[0] || "other";
+    const cls = `relationship-link relationship-link-${escapeAttr(type)}${related ? " is-related" : ""}${muted ? " is-muted" : ""}`;
+    const label = related ? `<text class="relationship-link-label" x="${((a.x + b.x) / 2 + RELATIONSHIP_CANVAS.nodeWidth / 2).toFixed(1)}" y="${((a.y + b.y) / 2 + RELATIONSHIP_CANVAS.nodeHeight / 2 - 9).toFixed(1)}">${escapeHtml(relation)}</text>` : "";
+    return `<path class="${cls}" data-relationship-edge="${index}" d="${relationshipPath(a, b)}"><title>${escapeHtml(relation + " · " + (edge.signals || []).join(" / "))}</title></path>${label}`;
   }).join("");
 }
 
@@ -2321,11 +2414,14 @@ function relationshipRenderMinimap(graph) {
 function relationshipRenderDetail(graph) {
   const detail = document.getElementById("relationshipDetail");
   const body = document.getElementById("relationshipDetailBody");
+  const actions = document.getElementById("relationshipDetailActions");
   const item = state.items.find(entry => entry.id === relationshipState.selectedId);
   const node = graph.nodes.find(entry => entry.id === relationshipState.selectedId);
   if (!item || !node) {
     document.getElementById("relationshipDetailTitle").textContent = "选择一个节点";
     body.innerHTML = '<div class="relationship-detail-empty">点击画布中的来源、判断或待验证事项，查看本地留存状态和关系依据。</div>';
+    actions.hidden = true;
+    actions.innerHTML = "";
     detail.classList.add("is-collapsed");
     return;
   }
@@ -2348,13 +2444,13 @@ function relationshipRenderDetail(graph) {
     ${tags ? `<div class="relationship-detail-tags">${tags}</div>` : ""}
     <section class="relationship-detail-section"><strong>内容摘录</strong><p>${escapeHtml(excerpt)}</p></section>
     <section class="relationship-detail-section"><strong>本地存储状态</strong><div class="relationship-archive-summary"><b>${escapeHtml(archiveMeta.label)}</b><span>${escapeHtml(archiveMeta.description)}</span><span>${escapeHtml(archive.updatedAt ? "更新于 " + archiveTimeLabel(archive.updatedAt) : "本地归档状态会在后台刷新")}</span></div></section>
-    <section class="relationship-detail-section"><strong>反向链接（${related.length}）</strong><div class="relationship-related-list">${relatedHtml}</div></section>
-    <div class="relationship-detail-actions">
-      <button type="button" data-relationship-action="study">研究档案</button>
-      ${item.url ? `<a href="${escapeAttr(item.url)}" target="_blank" rel="noopener">打开原文</a>` : '<button type="button" disabled>没有原文链接</button>'}
-      <button type="button" data-relationship-action="copy">复制本地线索</button>
-      <button type="button" data-relationship-action="verify">带入验证方案</button>
-    </div>`;
+    <section class="relationship-detail-section"><strong>反向链接（${related.length}）</strong><div class="relationship-related-list">${relatedHtml}</div></section>`;
+  actions.hidden = false;
+  actions.innerHTML = `
+    <button type="button" data-relationship-action="study">研究档案</button>
+    ${item.url ? `<a href="${escapeAttr(item.url)}" target="_blank" rel="noopener">打开原文</a>` : '<button type="button" disabled>没有原文链接</button>'}
+    <button type="button" data-relationship-action="copy">复制本地线索</button>
+    <button type="button" class="primary" data-relationship-action="verify">带入验证方案</button>`;
 }
 
 function updateRelationshipTransform() {
@@ -2364,18 +2460,23 @@ function updateRelationshipTransform() {
   if (relationshipState.analysis) relationshipRenderMinimap(relationshipFilteredGraph());
 }
 
-function fitRelationshipView() {
+function fitRelationshipView(options = {}) {
   const viewport = document.getElementById("relationshipViewport");
   if (!viewport.clientWidth || !viewport.clientHeight) return;
-  const minimumZoom = viewport.clientWidth < 700 ? 0.72 : 0.62;
+  if (options.instant) viewport.classList.add("is-instant-fit");
+  const mobileViewport = viewport.clientWidth < 700;
+  const minimumZoom = mobileViewport ? 0.42 : 0.62;
   const zoom = Math.min(1, Math.max(minimumZoom, Math.min((viewport.clientWidth - 34) / RELATIONSHIP_CANVAS.width, (viewport.clientHeight - 34) / RELATIONSHIP_CANVAS.height)));
   relationshipState.zoom = zoom;
   const selectedPoint = relationshipState.positions.get(relationshipState.selectedId);
-  relationshipState.panX = viewport.clientWidth < 700 && selectedPoint
+  relationshipState.panX = selectedPoint
     ? viewport.clientWidth / 2 - (selectedPoint.x + RELATIONSHIP_CANVAS.nodeWidth / 2) * zoom
-    : Math.max(16, (viewport.clientWidth - RELATIONSHIP_CANVAS.width * zoom) / 2);
+    : mobileViewport
+      ? (viewport.clientWidth - RELATIONSHIP_CANVAS.width * zoom) / 2
+      : Math.max(16, (viewport.clientWidth - RELATIONSHIP_CANVAS.width * zoom) / 2);
   relationshipState.panY = 24;
   updateRelationshipTransform();
+  if (options.instant) requestAnimationFrame(() => viewport.classList.remove("is-instant-fit"));
 }
 
 function setRelationshipZoom(nextZoom, anchorX, anchorY) {
@@ -2406,15 +2507,19 @@ function renderRelationship(options = {}) {
     document.getElementById("relationshipLinks").innerHTML = "";
     document.getElementById("relationshipZones").innerHTML = "";
     empty.hidden = false;
-    empty.textContent = state.items.length ? "当前筛选下没有可见节点。调整左侧范围或清除搜索后再试。" : "还没有本地条目。先添加一个来源，画布会自动建立关系。";
+    document.getElementById("relationshipSummary").textContent = state.items.length
+      ? "当前筛选组合暂无结果"
+      : "收藏第一条内容后，这里会自动建立关系";
+    empty.innerHTML = state.items.length
+      ? '<strong>这个筛选组合下没有内容</strong><span>返回全部范围，重新查看本地条目之间的关系。</span><button type="button" id="relationshipClearFilters">显示全部内容</button>'
+      : '<strong>还没有可以整理的内容</strong><span>先收藏一个来源，画布会自动建立可追溯关系。</span><button type="button" id="relationshipEmptyAdd">收藏第一条内容</button>';
     relationshipRenderDetail(graph);
     return;
   }
   empty.hidden = true;
   const layout = relationshipLayout(graph.nodes);
-  graph.nodes.forEach(node => {
-    if (!relationshipState.positions.has(node.id)) relationshipState.positions.set(node.id, layout.positions.get(node.id));
-  });
+  layout.positions.forEach((point, id) => relationshipState.positions.set(id, point));
+  if (layout.adjusted) queueMicrotask(saveRelationshipPositions);
   const selected = relationshipState.selectedId;
   const relatedIds = new Set();
   if (selected) graph.edges.forEach(edge => {
@@ -2422,13 +2527,13 @@ function renderRelationship(options = {}) {
     if (edge.target === selected) relatedIds.add(edge.source);
   });
   const itemById = new Map(state.items.map(item => [item.id, item]));
-  document.getElementById("relationshipZones").innerHTML = layout.zones.map(zone => `<div class="relationship-zone" style="left:${zone.x}px;top:${zone.y}px;width:${zone.width}px;height:${zone.height}px;--zone-color:${escapeAttr(zone.color)}"><span>${escapeHtml(zone.title)}</span></div>`).join("");
+  document.getElementById("relationshipZones").innerHTML = layout.zones.map(zone => `<div class="relationship-zone" style="left:${zone.x}px;top:${zone.y}px;width:${zone.width}px;height:${zone.height}px;--zone-color:${escapeAttr(zone.color)}"><span><b>${escapeHtml(zone.title)}</b><small>${zone.count} 个节点</small></span></div>`).join("");
   document.getElementById("relationshipNodes").innerHTML = graph.nodes.map(node => {
     const item = itemById.get(node.id);
     const point = relationshipState.positions.get(node.id);
     const muted = selected && selected !== node.id && !relatedIds.has(node.id);
     const sourceLabel = RELATIONSHIP_SOURCE_LABELS[relationshipSourceType(item)];
-    return `<button type="button" class="relationship-node${selected === node.id ? " is-selected" : ""}${muted ? " is-muted" : ""}" data-relationship-node="${escapeAttr(node.id)}" style="--node-x:${point.x}px;--node-y:${point.y}px;--node-color:${escapeAttr(catColor(item.category))}" role="listitem" aria-label="${escapeAttr(node.title)}，${escapeAttr(relationshipArchiveLabel(item))}">
+    return `<button type="button" class="relationship-node${selected === node.id ? " is-selected" : ""}${relatedIds.has(node.id) ? " is-related" : ""}${muted ? " is-muted" : ""}" data-relationship-node="${escapeAttr(node.id)}" style="--node-x:${point.x}px;--node-y:${point.y}px;--node-color:${escapeAttr(catColor(item.category))}" role="listitem" aria-label="${escapeAttr(node.title)}，${escapeAttr(relationshipArchiveLabel(item))}">
       <span class="relationship-node-type"><span>${escapeHtml(relationshipNodeLabel(node))}</span><b>${escapeHtml(item.category)}</b></span>
       <strong>${escapeHtml(node.title)}</strong>
       <span class="relationship-node-meta"><span>${escapeHtml(item.url ? domain(item.url) : sourceLabel)}</span><b>${escapeHtml(relationshipArchiveLabel(item))}</b></span>
@@ -2438,7 +2543,10 @@ function renderRelationship(options = {}) {
   relationshipRenderMinimap(graph);
   relationshipRenderDetail(graph);
   document.getElementById("relationshipSummary").textContent = `${graph.nodes.length} 个可见节点 · ${graph.edges.length} 条可追溯关系${graph.total > graph.nodes.length ? ` · 已聚焦高关联节点` : ""}`;
-  if (options.fit) requestAnimationFrame(fitRelationshipView);
+  if (options.fit) {
+    fitRelationshipView({ instant: options.instantFit });
+    requestAnimationFrame(() => fitRelationshipView({ instant: options.instantFit }));
+  }
   else updateRelationshipTransform();
 }
 
@@ -2479,9 +2587,6 @@ async function loadRelationship() {
     if (sequence !== relationshipState.sequence) return;
     const hydrated = relationshipHydrateGraph(graph || relationshipFallbackGraph(state.items));
     relationshipState.analysis = hydrated.nodes.length ? hydrated : relationshipFallbackGraph(state.items);
-    if (!relationshipState.selectedId && relationshipState.analysis.nodes.length) {
-      relationshipState.selectedId = [...relationshipState.analysis.nodes].sort((a, b) => (b.degree || 0) - (a.degree || 0))[0].id;
-    }
     status.textContent = "本地分析已更新";
   } catch (error) {
     if (error.name === "AbortError" || sequence !== relationshipState.sequence) return;
@@ -2498,7 +2603,7 @@ function selectRelationshipNode(id) {
   if (!state.items.some(item => item.id === String(id))) return;
   relationshipState.selectedId = String(id);
   relationshipState.detailOpen = true;
-  renderRelationship();
+  renderRelationship({ fit: true, instantFit: true });
   requestAnimationFrame(() => document.querySelector(`[data-relationship-node="${CSS.escape(String(id))}"]`)?.focus({ preventScroll: true }));
 }
 
@@ -2509,6 +2614,32 @@ function selectedRelationshipItem() {
 function openRelationship() {
   if (!state.items.length) { toast("请先新增至少一条本地记录", "err"); return; }
   setProductView("relationship");
+}
+
+const relationshipSidebar = document.getElementById("relationshipSidebar");
+const relationshipSidebarScrim = document.getElementById("relationshipSidebarScrim");
+const relationshipFilterButton = document.getElementById("relationshipFilterBtn");
+let relationshipSidebarGesture = null;
+function relationshipCompactLayout() {
+  return window.matchMedia && window.matchMedia("(max-width: 700px)").matches;
+}
+function setRelationshipSidebar(open, options = {}) {
+  const compact = relationshipCompactLayout();
+  const visible = compact && Boolean(open);
+  relationshipSidebar.classList.toggle("is-open", visible);
+  relationshipSidebar.inert = compact && !visible;
+  relationshipSidebar.setAttribute("aria-hidden", String(compact && !visible));
+  relationshipSidebarScrim.hidden = false;
+  relationshipSidebarScrim.classList.toggle("is-open", visible);
+  relationshipFilterButton.setAttribute("aria-expanded", String(visible));
+  if (visible && options.focus !== false) {
+    requestAnimationFrame(() => document.getElementById("relationshipSidebarClose").focus({ preventScroll: true }));
+  } else if (!visible && options.restoreFocus) {
+    relationshipFilterButton.focus({ preventScroll: true });
+  }
+}
+function closeRelationshipSidebarAfterFilter() {
+  if (relationshipCompactLayout()) setRelationshipSidebar(false, { restoreFocus: true });
 }
 
 /* - 头脑风暴：与灵感看板同级的多维知识碰撞工作台 - */
@@ -2531,6 +2662,7 @@ function setProductView(view, options) {
     button.classList.toggle("active", selected);
     button.setAttribute("aria-pressed", String(selected));
   });
+  setRelationshipSidebar(false, { focus: false });
   try { localStorage.setItem("product_view", productView); } catch (_) {}
   if (brainstormActive && options.load !== false) {
     loadBrainstorm();
@@ -2543,7 +2675,9 @@ function setProductView(view, options) {
   const surface = relationshipActive ? document.getElementById("relationshipView")
     : brainstormActive ? document.getElementById("brainstormView") : document.getElementById("banner");
   restartSurfaceMotion(surface);
-  if (brainstormActive || relationshipActive) window.scrollTo({ top: 0, behavior: options.instant ? "auto" : "smooth" });
+  if (brainstormActive || relationshipActive) {
+    window.scrollTo({ top: 0, behavior: options.instant || prefersReduce() ? "auto" : "smooth" });
+  }
 }
 
 function startRelationshipVerification() {
@@ -2558,6 +2692,52 @@ function startRelationshipVerification() {
 
 document.getElementById("relationshipNav").addEventListener("click", openRelationship);
 document.getElementById("relationshipRefreshBtn").addEventListener("click", loadRelationship);
+relationshipFilterButton.addEventListener("click", () => setRelationshipSidebar(true));
+document.getElementById("relationshipSidebarClose").addEventListener("click", () => setRelationshipSidebar(false, { restoreFocus: true }));
+relationshipSidebarScrim.addEventListener("click", () => setRelationshipSidebar(false, { restoreFocus: true }));
+relationshipSidebar.addEventListener("pointerdown", event => {
+  if (!relationshipCompactLayout() || !relationshipSidebar.classList.contains("is-open") || event.pointerType !== "touch") return;
+  if (!event.target.closest(".relationship-sidebar-grab, .relationship-rail-heading") || event.target.closest("button")) return;
+  if (relationshipSidebarGesture) return;
+  relationshipSidebarGesture = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    currentX: event.clientX,
+    startedAt: performance.now(),
+  };
+  relationshipSidebar.classList.add("is-dragging");
+  relationshipSidebar.setPointerCapture(event.pointerId);
+});
+relationshipSidebar.addEventListener("pointermove", event => {
+  const gesture = relationshipSidebarGesture;
+  if (!gesture || gesture.pointerId !== event.pointerId) return;
+  gesture.currentX = event.clientX;
+  const distance = Math.min(0, event.clientX - gesture.startX);
+  relationshipSidebar.style.transform = `translate3d(${distance}px, 0, 0)`;
+  relationshipSidebarScrim.style.opacity = String(Math.max(0, 1 + distance / Math.max(1, relationshipSidebar.offsetWidth)));
+  event.preventDefault();
+});
+function finishRelationshipSidebarGesture(event, cancelled = false) {
+  const gesture = relationshipSidebarGesture;
+  if (!gesture || gesture.pointerId !== event.pointerId) return;
+  const distance = Math.min(0, gesture.currentX - gesture.startX);
+  const elapsed = Math.max(1, performance.now() - gesture.startedAt);
+  const velocity = Math.abs(distance) / elapsed;
+  const dismiss = !cancelled && (distance < -72 || velocity > 0.35);
+  if (relationshipSidebar.hasPointerCapture(event.pointerId)) relationshipSidebar.releasePointerCapture(event.pointerId);
+  relationshipSidebarGesture = null;
+  relationshipSidebar.classList.remove("is-dragging");
+  relationshipSidebar.style.removeProperty("transform");
+  relationshipSidebarScrim.style.removeProperty("opacity");
+  setRelationshipSidebar(!dismiss, { focus: false, restoreFocus: dismiss });
+}
+relationshipSidebar.addEventListener("pointerup", event => finishRelationshipSidebarGesture(event));
+relationshipSidebar.addEventListener("pointercancel", event => finishRelationshipSidebarGesture(event, true));
+document.addEventListener("keydown", event => {
+  if (event.key !== "Escape" || !relationshipSidebar.classList.contains("is-open")) return;
+  event.preventDefault();
+  setRelationshipSidebar(false, { restoreFocus: true });
+});
 document.getElementById("relationshipDataBtn").addEventListener("click", () => document.getElementById("dataBtn").click());
 document.getElementById("relationshipAddBtn").addEventListener("click", () => document.getElementById("addBtn").click());
 document.getElementById("relationshipNoteBtn").addEventListener("click", () => {
@@ -2572,7 +2752,7 @@ document.getElementById("relationshipArrangeBtn").addEventListener("click", () =
   renderRelationship({ fit: true });
   toast("已恢复自动关系布局", "ok");
 });
-document.getElementById("relationshipSourceReset").addEventListener("click", () => {
+function resetRelationshipFilters() {
   relationshipState.source = "all";
   relationshipState.archive = "all";
   relationshipState.scope = "all";
@@ -2587,6 +2767,12 @@ document.getElementById("relationshipSourceReset").addEventListener("click", () 
     button.setAttribute("aria-pressed", String(active));
   });
   renderRelationship({ fit: true });
+  closeRelationshipSidebarAfterFilter();
+}
+document.getElementById("relationshipSourceReset").addEventListener("click", resetRelationshipFilters);
+document.getElementById("relationshipEmpty").addEventListener("click", event => {
+  if (event.target.closest("#relationshipClearFilters")) resetRelationshipFilters();
+  if (event.target.closest("#relationshipEmptyAdd")) document.getElementById("addBtn").click();
 });
 document.querySelector(".relationship-scope").addEventListener("click", event => {
   const button = event.target.closest("[data-relationship-scope]");
@@ -2598,12 +2784,14 @@ document.querySelector(".relationship-scope").addEventListener("click", event =>
     item.setAttribute("aria-pressed", String(active));
   });
   renderRelationship({ fit: true });
+  closeRelationshipSidebarAfterFilter();
 });
 document.getElementById("relationshipSourceFilters").addEventListener("click", event => {
   const button = event.target.closest("[data-relationship-source]");
   if (!button) return;
   relationshipState.source = button.dataset.relationshipSource;
   renderRelationship({ fit: true });
+  closeRelationshipSidebarAfterFilter();
 });
 document.getElementById("relationshipArchiveFilters").addEventListener("click", event => {
   const button = event.target.closest("[data-relationship-archive]");
@@ -2615,6 +2803,7 @@ document.getElementById("relationshipArchiveFilters").addEventListener("click", 
     item.setAttribute("aria-pressed", String(active));
   });
   renderRelationship({ fit: true });
+  closeRelationshipSidebarAfterFilter();
 });
 document.getElementById("relationshipNodes").addEventListener("click", event => {
   const node = event.target.closest("[data-relationship-node]");
@@ -2626,7 +2815,7 @@ document.getElementById("relationshipDetailClose").addEventListener("click", () 
   document.getElementById("relationshipDetail").classList.add("is-collapsed");
   document.getElementById("relationshipViewport").focus({ preventScroll: true });
 });
-document.getElementById("relationshipDetailBody").addEventListener("click", async event => {
+document.getElementById("relationshipDetail").addEventListener("click", async event => {
   const related = event.target.closest("[data-relationship-select]");
   if (related) { selectRelationshipNode(related.dataset.relationshipSelect); return; }
   const action = event.target.closest("[data-relationship-action]");
@@ -2706,7 +2895,25 @@ function finishRelationshipPointer(event) {
   relationshipViewport.classList.remove("is-panning", "is-dragging-node");
   document.querySelector(".relationship-node.is-dragging")?.classList.remove("is-dragging");
   if (pointer.type === "node" && pointer.moved) {
-    saveRelationshipPositions();
+    const point = relationshipState.positions.get(pointer.id);
+    const graph = relationshipFilteredGraph();
+    const semanticZone = relationshipLayout(graph.nodes).zones.find(zone => zone.nodeIds.has(pointer.id));
+    const outsideSemanticZone = semanticZone && !relationshipPointInsideZone(point, semanticZone);
+    const collides = graph.nodes.some(node => node.id !== pointer.id && relationshipPointsOverlap(point, relationshipState.positions.get(node.id)));
+    if (outsideSemanticZone) {
+      renderRelationship();
+      toast("节点已留在所属主题分区", "ok");
+    } else if (collides) {
+      relationshipState.positions.set(pointer.id, { x: pointer.pointX, y: pointer.pointY });
+      renderRelationship();
+      toast("节点之间需要留出一点空间", "err");
+    } else {
+      const dropped = { x: point.x, y: point.y };
+      saveRelationshipPositions();
+      renderRelationship();
+      const settled = relationshipState.positions.get(pointer.id);
+      if (Math.abs(settled.x - dropped.x) > 1 || Math.abs(settled.y - dropped.y) > 1) toast("节点已留在所属主题分区", "ok");
+    }
     relationshipState.suppressClick = true;
     setTimeout(() => { relationshipState.suppressClick = false; }, 0);
   }
@@ -2731,6 +2938,7 @@ window.addEventListener("resize", () => {
   if (productView !== "relationship") return;
   clearTimeout(relationshipResizeTimer);
   relationshipResizeTimer = setTimeout(() => {
+    setRelationshipSidebar(false, { focus: false });
     renderRelationship();
     fitRelationshipView();
   }, 120);
@@ -2958,14 +3166,30 @@ async function loadBrainstorm() {
   const saveButton = document.getElementById("brainstormSaveBtn");
   const goalButton = document.getElementById("brainstormGoalBtn");
   const goal = document.getElementById("brainstormGoal").value.trim().slice(0, 400);
+  if (!goal && !state.demoMode) {
+    brainstormController = null;
+    brainstormLastAnalysis = null;
+    document.getElementById("brainstormSummary").textContent = "先写下一个真实问题，再从收藏中寻找组合方案";
+    document.getElementById("brainstormInsights").innerHTML = "";
+    graph.innerHTML = '<div class="brainstorm-empty">输入需求后，这里会展示可追溯的项目关系。</div>';
+    fusion.innerHTML = '<div class="brainstorm-empty brainstorm-goal-empty"><strong>先明确这次要解决的问题</strong><span>可以直接输入，也可以选择上方示例。分析只读取本机项目，不会上传 DATA.md。</span></div>';
+    dimensions.innerHTML = '<div class="brainstorm-empty">完成第一次融合后可查看分析维度。</div>';
+    matrix.innerHTML = '<div class="brainstorm-empty">完成第一次融合后可查看跨域碰撞。</div>';
+    suggestions.innerHTML = '<div class="brainstorm-empty">机会、盲区和路线会在形成分析后出现。</div>';
+    updateBrainstormPanels();
+    setButtonBusy(button, false);
+    setButtonBusy(goalButton, false);
+    saveButton.disabled = true;
+    return;
+  }
   graph.innerHTML = '<div class="brainstorm-loading">正在计算事项关联…</div>';
   fusion.innerHTML = '<div class="brainstorm-loading">正在围绕实际需求抽取项目长处…</div>';
   dimensions.innerHTML = '<div class="brainstorm-loading">正在展开分析维度…</div>';
   matrix.innerHTML = '<div class="brainstorm-loading">正在计算跨域碰撞…</div>';
   suggestions.innerHTML = '<div class="brainstorm-loading">正在生成多维建议…</div>';
   brainstormLastAnalysis = null;
-  button.disabled = true;
-  goalButton.disabled = true;
+  setButtonBusy(button, true, "分析中…");
+  setButtonBusy(goalButton, true, "融合中…");
   saveButton.disabled = true;
   try {
     try { localStorage.setItem("brainstorm_goal", goal); } catch (_) {}
@@ -2995,7 +3219,8 @@ async function loadBrainstorm() {
   } finally {
     if (sequence !== brainstormLoadSequence) return;
     brainstormController = null;
-    button.disabled = false;
+    setButtonBusy(button, false);
+    setButtonBusy(goalButton, false);
     goalButton.disabled = state.demoMode;
     saveButton.disabled = !state.httpMode || !brainstormLastAnalysis;
   }
@@ -3037,7 +3262,7 @@ async function saveBrainstormReport() {
   if (!requireService("保存头脑风暴方案")) return;
   if (!brainstormLastAnalysis) { toast("请先完成本轮分析", "err"); return; }
   const button = document.getElementById("brainstormSaveBtn");
-  button.disabled = true;
+  setButtonBusy(button, true, "保存中…");
   try {
     const goal = String(brainstormLastAnalysis.fusion && brainstormLastAnalysis.fusion.goal || "").trim().slice(0, 400);
     const mode = brainstormLastAnalysis.mode || brainstormMode;
@@ -3052,6 +3277,7 @@ async function saveBrainstormReport() {
   } catch (error) {
     toast("方案保存失败：" + error.message, "err");
   } finally {
+    setButtonBusy(button, false);
     button.disabled = !state.httpMode || !brainstormLastAnalysis;
   }
 }
@@ -3065,7 +3291,14 @@ function openBrainstorm() {
 document.getElementById("brainstormBtn").addEventListener("click", openBrainstorm);
 document.getElementById("brainstormBridgeBtn").addEventListener("click", openBrainstorm);
 document.getElementById("inspirationNav").addEventListener("click", () => setProductView("inspiration"));
-document.getElementById("brainstormRefreshBtn").addEventListener("click", loadBrainstorm);
+document.getElementById("brainstormRefreshBtn").addEventListener("click", () => {
+  if (!document.getElementById("brainstormGoal").value.trim() && !state.demoMode) {
+    toast("请先写下一个实际需求", "err");
+    document.getElementById("brainstormGoal").focus({ preventScroll: true });
+    return;
+  }
+  loadBrainstorm();
+});
 document.getElementById("brainstormSaveBtn").addEventListener("click", saveBrainstormReport);
 function activateBrainstormMode(button, options = {}) {
   if (!button) return;
@@ -3150,8 +3383,7 @@ document.getElementById("trashModal").addEventListener("click", async e => {
   const button = e.target.closest(".trash-restore");
   if (!button) return;
   const row = button.closest(".trash-item");
-  button.disabled = true;
-  button.textContent = "恢复中…";
+  setButtonBusy(button, true, "恢复中…");
   try {
     const response = await localApiFetch("/api/trash/restore", {
       method: "POST",
@@ -3168,8 +3400,7 @@ document.getElementById("trashModal").addEventListener("click", async e => {
     toast(`已恢复条目 ${data.restored.id}`, "ok");
   } catch (error) {
     toast("恢复失败：" + error.message, "err");
-    button.disabled = false;
-    button.textContent = "恢复";
+    setButtonBusy(button, false);
   }
 });
 
@@ -3209,7 +3440,7 @@ document.getElementById("dataModal").addEventListener("click", e => {
 });
 document.getElementById("exportBackupBtn").addEventListener("click", async () => {
   const button = document.getElementById("exportBackupBtn");
-  button.disabled = true;
+  setButtonBusy(button, true, "导出中…");
   try {
     const response = await localApiFetch("/api/backup", { cache: "no-store" });
     if (!response.ok) {
@@ -3224,11 +3455,11 @@ document.getElementById("exportBackupBtn").addEventListener("click", async () =>
     setTimeout(() => URL.revokeObjectURL(link.href), 1000);
     toast("完整备份已导出", "ok");
   } catch (error) { toast("导出失败：" + error.message, "err"); }
-  finally { button.disabled = false; }
+  finally { setButtonBusy(button, false); }
 });
 document.getElementById("exportDiagnosticsBtn").addEventListener("click", async () => {
   const button = document.getElementById("exportDiagnosticsBtn");
-  button.disabled = true;
+  setButtonBusy(button, true, "导出中…");
   try {
     const response = await localApiFetch("/api/diagnostics", { cache: "no-store" });
     const data = await readJsonResponse(response);
@@ -3242,7 +3473,7 @@ document.getElementById("exportDiagnosticsBtn").addEventListener("click", async 
     setTimeout(() => URL.revokeObjectURL(link.href), 1000);
     toast("匿名诊断信息已导出", "ok");
   } catch (error) { toast("诊断导出失败：" + error.message, "err"); }
-  finally { button.disabled = false; }
+  finally { setButtonBusy(button, false); }
 });
 document.getElementById("importBackupBtn").addEventListener("click", () => {
   document.getElementById("backupFileInput").click();
@@ -3255,7 +3486,7 @@ document.getElementById("bookmarkFileInput").addEventListener("change", async e 
   if (!file) return;
   if (file.size > 5 * 1024 * 1024) { toast("书签 HTML 超过 5MB", "err"); e.target.value = ""; return; }
   const button = document.getElementById("importBookmarksBtn");
-  button.disabled = true;
+  setButtonBusy(button, true, "预检中…");
   try {
     const content = await file.text();
     const previewResponse = await localApiFetch("/api/bookmarks/preview", {
@@ -3295,7 +3526,7 @@ document.getElementById("bookmarkFileInput").addEventListener("change", async e 
   } catch (error) {
     toast("书签导入失败：" + error.message, "err");
   } finally {
-    button.disabled = false;
+    setButtonBusy(button, false);
     e.target.value = "";
   }
 });
@@ -3325,7 +3556,7 @@ document.getElementById("backupFileInput").addEventListener("change", async e =>
     return;
   }
   const button = document.getElementById("importBackupBtn");
-  button.disabled = true;
+  setButtonBusy(button, true, "预检中…");
   try {
     const previewResponse = await localApiFetch("/api/backup/preview", {
       method: "POST",
@@ -3369,7 +3600,7 @@ document.getElementById("backupFileInput").addEventListener("change", async e =>
     toast(`已从完整备份恢复 ${preview.entryCount} 个条目并完成验证`, "ok");
     await openDataManager();
   } catch (error) { toast("恢复失败：" + error.message, "err"); }
-  finally { button.disabled = false; e.target.value = ""; }
+  finally { setButtonBusy(button, false); e.target.value = ""; }
 });
 
 /* - 沉浸研究模式 - */
@@ -3454,10 +3685,17 @@ document.getElementById("studyStatus").addEventListener("click", async () => {
   if (!studyItem) return;
   const button = document.getElementById("studyStatus");
   const next = studyItem.status === "pending" ? "doing" : studyItem.status === "doing" ? "done" : "pending";
-  button.disabled = true;
-  const updated = await updateItemStatus(studyItem, next);
-  button.disabled = false;
-  if (updated) button.textContent = studyItem.status === "pending" ? "标记为进行中" : studyItem.status === "doing" ? "标记为已完成" : "重置为待研究";
+  setButtonBusy(button, true, "更新中…");
+  try {
+    const updated = await updateItemStatus(studyItem, next);
+    if (updated) {
+      setButtonBusy(button, false);
+      button.textContent = studyItem.status === "pending" ? "标记为进行中" : studyItem.status === "doing" ? "标记为已完成" : "重置为待研究";
+      return;
+    }
+  } finally {
+    setButtonBusy(button, false);
+  }
 });
 document.getElementById("timerToggle").addEventListener("click", () => {
   if (timerRunning) { stopTimer(); return; }
@@ -3484,7 +3722,7 @@ async function saveStudyNote(closeAfter = false) {
   if (!requireService("保存研究笔记")) return;
   const note = document.getElementById("studyNote").value.trim();
   const saveButton = closeAfter ? document.getElementById("studySaveExit") : document.getElementById("studySave");
-  saveButton.disabled = true;
+  setButtonBusy(saveButton, true, closeAfter ? "保存并退出中…" : "保存中…");
   try {
     const r = await localApiFetch("/api/note", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: studyItem.id, note: note || "（待补充）" }) });
     const d = await r.json();
@@ -3496,7 +3734,7 @@ async function saveStudyNote(closeAfter = false) {
   } catch (e) {
     toast("保存失败：" + e.message, "err");
   } finally {
-    saveButton.disabled = false;
+    setButtonBusy(saveButton, false);
   }
 }
 document.getElementById("studySave").addEventListener("click", () => saveStudyNote(false));
@@ -3509,7 +3747,7 @@ document.getElementById("studyContinue").addEventListener("click", () => {
 
 /* - 快捷指令：把高频入口统一到可搜索、可键盘操作的本地面板。 - */
 const COMMANDS = [
-  { id: "capture", glyph: "+", title: "新增灵感", hint: "粘贴链接并自动抓取", keywords: "新增 收藏 链接 capture", shortcut: "N", run: () => document.getElementById("addBtn").click() },
+  { id: "capture", glyph: "+", title: "收藏内容", hint: "粘贴链接，自动解析并留存", keywords: "新增 收藏 内容 链接 capture", shortcut: "N", run: () => document.getElementById("addBtn").click() },
   { id: "search", glyph: "⌕", title: "搜索项目", hint: "定位标题、简介和归档正文", keywords: "搜索 查找 search", shortcut: "/", run: () => document.getElementById("searchInput").focus() },
   { id: "inspiration", glyph: "01", title: "进入灵感来袭", hint: "返回收集与研究工作台", keywords: "首页 灵感 列表", run: () => setProductView("inspiration") },
   { id: "relationship", glyph: "02", title: "进入关系画布", hint: "整理来源、判断与验证路径", keywords: "关系 画布 图谱 溯源", shortcut: "G", run: openRelationship },
@@ -3738,6 +3976,7 @@ function openEntry(id, options = {}) {
   };
   if (returnProductView !== "inspiration") setProductView("inspiration", { load: false, instant: true });
   currentEntryId = requestedId;
+  document.body.classList.add("entry-active");
   entryLoadSequence += 1;
   const sequence = entryLoadSequence;
   if (entryLoadController) entryLoadController.abort();
@@ -3830,6 +4069,7 @@ function closeEntry() {
   entryLoadSequence += 1;
   if (entryLoadController) entryLoadController.abort();
   entryLoadController = null;
+  document.body.classList.remove("entry-active");
   const returnState = entryReturnState;
   document.getElementById("entryView").hidden = true;
   document.getElementById("entryView").removeAttribute("aria-busy");
@@ -3914,16 +4154,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const sequence = entryLoadSequence;
     const hint = document.getElementById("scrapeHint");
     if (hint) hint.textContent = "抓取中…";
-    scrapeBtn.disabled = true;
+    setButtonBusy(scrapeBtn, true, "抓取中…");
     localApiFetch("/api/entry/scrape", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: requestedId })
     }).then(r => r.json()).then(r => {
-      scrapeBtn.disabled = false;
+      setButtonBusy(scrapeBtn, false);
       if (!isCurrentEntryLoad(sequence, requestedId)) return;
       if (r.ok) { toast("正文抓取成功"); loadContentPreview(requestedId, sequence); }
       else { toast("抓取未成功: " + (r.warning || r.error || "未知"), "err"); if (hint) hint.textContent = r.warning || "抓取失败，可稍后重试"; }
-    }).catch(e => { scrapeBtn.disabled = false; toast("网络错误: " + e.message, "err"); });
+    }).catch(e => { setButtonBusy(scrapeBtn, false); toast("网络错误: " + e.message, "err"); });
   });
 
   // 保存档案
@@ -3931,11 +4171,13 @@ document.addEventListener("DOMContentLoaded", () => {
   if (form) form.addEventListener("submit", e => {
     e.preventDefault();
     if (!currentEntryId) return;
+    const saveButton = e.currentTarget.querySelector('button[type="submit"]');
     const requestedId = currentEntryId;
     const fd = new FormData(e.target);
     const fields = Object.fromEntries(fd);
     fields.rating = Number(fields.rating);
     fields.recommendLevel = Number(fields.recommendLevel);
+    setButtonBusy(saveButton, true, "保存中…");
     localApiFetch("/api/entry/notes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -3943,7 +4185,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }).then(r => r.json()).then(r => {
       if (r.ok) toast("档案已保存");
       else toast("保存失败: " + (r.error || ""), "err");
-    }).catch(e => toast("网络错误: " + e.message, "err"));
+    }).catch(e => toast("网络错误: " + e.message, "err"))
+      .finally(() => setButtonBusy(saveButton, false));
   });
 
   // 上传截图
@@ -3957,7 +4200,7 @@ document.addEventListener("DOMContentLoaded", () => {
     fd.append("file", fileInput.files[0]);
     fd.append("caption", document.getElementById("ssCaption").value);
     toast("上传中...");
-    ssUploadBtn.disabled = true;
+    setButtonBusy(ssUploadBtn, true, "上传中…");
     localApiFetch("/api/entry/screenshot?id=" + encodeURIComponent(requestedId), {
       method: "POST", body: fd
     }).then(r => r.json()).then(async r => {
@@ -3970,7 +4213,7 @@ document.addEventListener("DOMContentLoaded", () => {
         toast("上传失败: " + (r.error || ""), "err");
       }
     }).catch(e => toast("网络错误: " + e.message, "err"))
-      .finally(() => { ssUploadBtn.disabled = false; });
+      .finally(() => setButtonBusy(ssUploadBtn, false));
   });
 
   // 删除截图（事件委托）
@@ -3980,15 +4223,15 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!btn || !currentEntryId) return;
     if (!confirm("删除这张截图?")) return;
     const requestedId = currentEntryId;
-    btn.disabled = true;
+    setButtonBusy(btn, true, "删除中…");
     localApiFetch("/api/entry/screenshot/delete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: requestedId, file: btn.dataset.file })
     }).then(r => r.json()).then(async r => {
       if (r.ok) { toast("已删除"); await refreshEntryScreenshots(requestedId); }
-      else { btn.disabled = false; toast("删除失败: " + (r.error || ""), "err"); }
-    }).catch(e => { btn.disabled = false; toast("网络错误: " + e.message, "err"); });
+      else { setButtonBusy(btn, false); toast("删除失败: " + (r.error || ""), "err"); }
+    }).catch(e => { setButtonBusy(btn, false); toast("网络错误: " + e.message, "err"); });
   });
 });
 

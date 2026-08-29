@@ -40,6 +40,10 @@
 
 把本地项目按主题聚成可缩放、可拖拽的证据空间，查看来源之间的可追溯关系、归档状态和反向链接。筛选结果、节点位置和研究上下文都留在本机；分析接口不可用时会自动保留离线基础关系。
 
+<p align="center">
+  <img src="./assets/readme/showcase-relationship.png" width="100%" alt="关系画布按主题整理本地来源，支持筛选、拖拽、缩放、反向链接和验证方案">
+</p>
+
 ### 03 · 头脑风暴
 
 从一个真实需求出发，分析项目库中不同事项的能力、场景和关联依据，生成多条融合路径、候选项目贡献和最小验证步骤。结果可保存为本地 Markdown，成为可复盘的决策记录。
@@ -70,7 +74,7 @@
 
 ### Windows 一键启动
 
-1. 公开下载：打开 [GitHub Releases](https://github.com/WYHCIPUC/TodoBoard/releases)，下载 `linggankanban-2.2.0-windows-portable-x64.zip`，解压后双击 `start-portable.bat`。
+1. 公开下载：打开 [GitHub Releases](https://github.com/WYHCIPUC/TodoBoard/releases)，下载 `linggankanban-2.3.0-windows-portable-x64.zip`，解压后双击 `start-portable.bat`。
 2. 人工购买：收到 `linggankanban-<版本>-windows-x64.exe` 后直接双击。新版单文件程序会打开独立桌面窗口；若 Microsoft Edge 不可用，则自动回退到默认浏览器兼容模式。
 
 运行环境会缓存到 `%LOCALAPPDATA%\LingganKanban\app`，个人数据和备份独立保存在“文档\LingganKanban”。升级或替换 EXE 不会覆盖数据。
@@ -122,7 +126,7 @@ npm start
 - 抓取失败时仍会保存链接和可识别信息，避免灵感丢失。
 - 归档任务保存在带恢复副本的本地队列，服务重启后继续处理；自动重试耗尽时可以手动重试或粘贴正文。
 - 旧版本升级前会先备份 `DATA.md` 和研究档案；迁移失败不会覆盖源数据。
-- v2.2 恢复默认只做检查和预览；候选不明确时停止，只有显式选择并确认后才写入，写入后生成可验证收据。
+- 恢复默认只做检查和预览；候选不明确时停止，只有显式选择并确认后才写入，写入后生成可验证收据。
 - 不要提交 `DATA.md`、自动备份、代理凭据或隧道密钥。
 
 恢复检查不会修改数据：
@@ -132,7 +136,7 @@ node scripts/recover.js --help
 node scripts/recover.js --json
 ```
 
-执行恢复前请停止其他实例，先复制整个数据目录，并按命令输出显式指定事务、候选与确认选项。详细步骤见 [v2.2.0 发布说明](docs/releases/v2.2.0.md)。
+执行恢复前请停止其他实例，先复制整个数据目录，并按命令输出显式指定事务、候选与确认选项。详细步骤见 [v2.3.0 发布说明](docs/releases/v2.3.0.md)。
 
 完整边界和漏洞报告方式见 [安全策略](SECURITY.md)。
 
@@ -140,14 +144,15 @@ node scripts/recover.js --json
 
 - [项目原则](docs/PROJECT-PRINCIPLES.md) — 产品边界、决策优先级与质量底线
 - [原则对照与补强计划](docs/plans/2026-08-14-principles-gap-analysis.md) — 当前优势、缺口和后续实施顺序
-- [v2.2.0 可信恢复与回顾升级计划](docs/plans/2026-08-14-v2.2-trusted-recovery-review-plan.md) — 下一稳定版的范围、任务依赖、失败回滚与发布门禁
+- [v2.2.0 可信恢复与回顾升级计划](docs/plans/2026-08-14-v2.2-trusted-recovery-review-plan.md) — 可信恢复基础的范围、任务依赖、失败回滚与发布门禁
 - [文档索引](docs/INDEX.md) — 使用、设计、可靠性与发布资料入口
 - [Windows 使用指南](docs/WINDOWS-GUIDE.md) — 安装、升级、改端口、故障排查与卸载
 - [企业微信接入指南](docs/WECOM-GUIDE.md) — 转发链接远程入库
 - [可靠链接归档说明](docs/plans/reliable-link-archive.md) — 主动备份、重试状态、X Cookie 与发布边界
 - [钉钉接入指南](docs/DINGTALK-GUIDE.md) — Stream 模式，零域名零公网
 - [更新日志](CHANGELOG.md) — 版本变化
-- [v2.2.0 发布说明](docs/releases/v2.2.0.md) — 兼容性、升级、恢复、回滚与校验
+- [v2.3.0 发布说明](docs/releases/v2.3.0.md) — 三阶段工作流、兼容性、升级、恢复、回滚与校验
+- [v2.3 更新视频设计](docs/video/linggan-v2.3-update-design.md) — 新版功能映射、镜头节奏与数据边界
 - [贡献指南](CONTRIBUTING.md) — 开发流程与提交规范
 - [发布清单](docs/RELEASE-CHECKLIST.md) — 发布前检查
 - [便携运行时说明](docs/PORTABLE-RUNTIME.md) — 内置 Node.js 的来源、校验与更新策略

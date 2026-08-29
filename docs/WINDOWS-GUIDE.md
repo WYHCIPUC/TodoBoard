@@ -4,13 +4,13 @@
 
 ### 单文件 EXE
 
-下载 `linggankanban-2.2.0-windows-x64.exe` 和同一 Release 的 `SHA256SUMS.txt`，先校验 SHA-256，再双击 EXE。无需安装 Node.js。程序缓存位于 `%LOCALAPPDATA%\LingganKanban\app`，个人数据默认位于 `%USERPROFILE%\Documents\LingganKanban`；两者分离，替换 EXE 不会覆盖数据。
+下载 `linggankanban-2.3.0-windows-x64.exe` 和同一 Release 的 `SHA256SUMS.txt`，先校验 SHA-256，再双击 EXE。无需安装 Node.js。程序缓存位于 `%LOCALAPPDATA%\LingganKanban\app`，个人数据默认位于 `%USERPROFILE%\Documents\LingganKanban`；两者分离，替换 EXE 不会覆盖数据。
 
 程序优先使用 Microsoft Edge 应用窗口；Edge 不可用时回退到默认浏览器。再次启动会复用已运行的同版本服务，不会创建第二个写入者。
 
 ### 便携版与源码版
 
-便携版下载 `linggankanban-2.2.0-windows-portable-x64.zip`，完整解压到有写权限的目录后双击 `start-portable.bat`。包内固定为 Node.js 24.16.0，无需系统 Node.js。不要在压缩包预览窗口内运行。
+便携版下载 `linggankanban-2.3.0-windows-portable-x64.zip`，完整解压到有写权限的目录后双击 `start-portable.bat`。包内固定为 Node.js 24.16.0，无需系统 Node.js。不要在压缩包预览窗口内运行。
 
 源码版需要 Node.js 22 或 24；Node.js 20 已停止支持：
 
@@ -31,11 +31,11 @@ npm start
 
 应用本地读取、搜索、备份和恢复预检不依赖网络。网页抓取失败时保留已保存 URL 和已有本地内容，显示失败状态供重试，不会用较差结果静默覆盖有效归档。
 
-## 从 v2.1 升级
+## 从 v2.1 / v2.2 升级
 
 1. 停止旧服务并复制整个数据目录；不要让两个版本同时写入。
 2. 在旧版本中导出完整备份，记录条目、笔记、正文和截图数量。
-3. 将 v2.2 成品放到新目录后启动；启动器先预检、加锁并创建升级快照，再开放数据 API。
+3. 将 v2.3 成品放到新目录后启动；启动器先预检、加锁并在需要时创建升级快照，再开放数据 API。
 4. 核对数据与 `.linggan/upgrade-snapshots/pre-2.2.0-*` 中的 `manifest.json`。升级中断会在下次启动收敛；证据歧义或验证失败时停止并显示恢复指引。
 
 不要把旧目录直接覆盖为新目录，也不要手工删除事务、锁或快照来“继续启动”。
@@ -58,8 +58,8 @@ node scripts/recover.js --json
 在 Release 下载目录中执行：
 
 ```powershell
-Get-FileHash .\linggankanban-2.2.0-windows-x64.exe -Algorithm SHA256
-Get-FileHash .\linggankanban-2.2.0-windows-portable-x64.zip -Algorithm SHA256
+Get-FileHash .\linggankanban-2.3.0-windows-x64.exe -Algorithm SHA256
+Get-FileHash .\linggankanban-2.3.0-windows-portable-x64.zip -Algorithm SHA256
 Get-Content .\SHA256SUMS.txt
 ```
 

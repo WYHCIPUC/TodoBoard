@@ -47,16 +47,7 @@
           <span class="product-nav-step" aria-hidden="true">03</span><span><strong>头脑风暴</strong><small>融合与决策</small></span>
         </button>
       </nav>
-      <div class="search">
-        <input type="text" id="searchInput" placeholder="搜索标题、简介或关键词" aria-label="搜索">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
-        <button type="button" class="search-clear" id="searchClearBtn" aria-label="清除搜索" title="清除搜索" hidden>×</button>
-      </div>
-      <div class="view-switch" id="viewSwitch">
-        <div class="vs-slider" id="vsSlider"></div>
-        <button type="button" data-view="list" class="active" aria-pressed="true">列表</button>
-        <button type="button" data-view="board" aria-pressed="false">看板</button>
-      </div>
+      <div class="topbar-actions">
       <button type="button" class="btn command-btn" id="commandBtn" title="快捷指令（Ctrl+K）" aria-label="打开快捷指令" aria-haspopup="dialog" aria-controls="commandModal">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M4 12h16M4 17h8"/><path d="m17 5 3 2-3 2"/></svg>
         <kbd>Ctrl K</kbd>
@@ -91,20 +82,23 @@
           <button type="button" class="btn icon-btn more-btn" id="moreBtn" title="更多操作" aria-label="更多操作" aria-haspopup="menu" aria-controls="morePanel" aria-expanded="false">•••</button>
           <div class="more-panel" id="morePanel" role="menu" aria-hidden="true" hidden inert>
             <div class="more-panel-title">工作台工具</div>
+            <button type="button" class="more-panel-primary" role="menuitem" data-target="addBtn">＋ 收藏内容</button>
             <button type="button" role="menuitem" data-target="rollBtn">随机抽取</button>
             <button type="button" role="menuitem" data-target="statsBtn">统计洞察</button>
             <button type="button" role="menuitem" data-target="trashBtn">回收站</button>
             <button type="button" role="menuitem" data-target="dataBtn">数据管理</button>
+            <button type="button" role="menuitem" data-target="reloadBtn">重新读取数据</button>
             <button type="button" role="menuitem" data-target="commandBtn">快捷指令</button>
             <button type="button" role="menuitem" data-target="helpBtn">使用帮助</button>
           </div>
         </div>
-        <button type="button" class="btn primary" id="addBtn" title="粘贴链接，自动抓取并写入 DATA.md">
+        <button type="button" class="btn primary capture-primary" id="addBtn" data-capture-trigger title="收藏内容（N）：粘贴链接，自动抓取并写入 DATA.md" aria-label="收藏内容" aria-keyshortcuts="N">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          新增
+          <span class="capture-primary-label">收藏内容</span>
         </button>
         <button class="btn" id="reloadBtn" title="重新读取文件" hidden>刷新</button>
         <span class="fname" id="fname">未加载</span>
+      </div>
       </div>
     </div>
   </header>
@@ -133,10 +127,11 @@
 
   <main class="main">
     <section id="relationshipView" class="relationship-workspace" hidden aria-labelledby="relationshipTitle">
-      <aside class="relationship-sidebar" aria-label="关系图导航与筛选">
+      <aside class="relationship-sidebar" id="relationshipSidebar" aria-label="关系图导航与筛选">
+        <div class="relationship-sidebar-grab" aria-hidden="true"><span></span></div>
         <div class="relationship-rail-heading">
-          <span>研究空间</span>
-          <strong>我的知识库</strong>
+          <div><span>研究空间</span><strong>我的知识库</strong></div>
+          <button type="button" id="relationshipSidebarClose" aria-label="关闭关系筛选">×</button>
         </div>
         <nav class="relationship-scope" aria-label="关系图范围">
           <button type="button" data-relationship-scope="inbox" aria-pressed="false"><span>收件箱</span><b id="relationshipInboxCount">0</b></button>
@@ -161,15 +156,17 @@
           <button type="button" id="relationshipDataBtn">备份与恢复</button>
         </section>
       </aside>
+      <button type="button" class="relationship-sidebar-scrim" id="relationshipSidebarScrim" aria-label="关闭关系筛选" hidden></button>
 
       <section class="relationship-center" aria-labelledby="relationshipTitle">
         <header class="relationship-canvas-header">
           <div>
             <span class="relationship-kicker">LOCAL EVIDENCE MAP</span>
-            <h1 id="relationshipTitle">知识关系画布</h1>
+            <h1 id="relationshipTitle">关系画布</h1>
             <p id="relationshipSummary">从本地条目中寻找共振、互补与验证路径。</p>
           </div>
           <div class="relationship-header-actions">
+            <button type="button" class="btn relationship-filter-btn" id="relationshipFilterBtn" aria-controls="relationshipSidebar" aria-expanded="false">筛选</button>
             <span id="relationshipAnalysisState" role="status" aria-live="polite">等待分析</span>
             <button type="button" class="btn" id="relationshipRefreshBtn">更新分析</button>
           </div>
@@ -180,7 +177,7 @@
             <div class="relationship-zones" id="relationshipZones"></div>
             <div class="relationship-nodes" id="relationshipNodes" role="list" aria-label="知识节点"></div>
           </div>
-          <div class="relationship-empty" id="relationshipEmpty" role="status">正在整理本地关系…</div>
+          <div class="relationship-empty" id="relationshipEmpty" role="status"><strong>正在整理本地关系…</strong></div>
           <div class="relationship-map-controls" aria-label="画布缩放">
             <button type="button" id="relationshipZoomOut" aria-label="缩小画布">−</button>
             <span id="relationshipZoomLabel">100%</span>
@@ -206,13 +203,15 @@
         <div class="relationship-detail-body" id="relationshipDetailBody">
           <div class="relationship-detail-empty">点击画布中的来源、判断或待验证事项，查看本地留存状态和关系依据。</div>
         </div>
+        <div class="relationship-detail-actions" id="relationshipDetailActions" hidden></div>
       </aside>
     </section>
 
     <section id="brainstormView" class="brainstorm-workspace" hidden aria-labelledby="brainstormTitle">
+      <section class="brainstorm-intro" aria-label="头脑风暴起点">
       <header class="brainstorm-hero">
         <div class="brainstorm-hero-copy">
-          <div class="brainstorm-kicker">02 · 关联与决策</div>
+          <div class="brainstorm-kicker">03 · 融合与决策</div>
           <h1 id="brainstormTitle">头脑风暴</h1>
           <p>从真实需求出发，提取不同项目的长处，形成有依据、可验证的新方案。</p>
         </div>
@@ -228,7 +227,7 @@
           <p>建议写清使用场景、个人偏好和期望结果。</p>
         </div>
         <div class="goal-builder-input">
-          <textarea id="brainstormGoal" maxlength="400" rows="3">制作一个属于自己的、符合自己偏好的网站设计 Skill</textarea>
+          <textarea id="brainstormGoal" maxlength="400" rows="3" placeholder="例如：如何把收藏的项目组合成一套可验证的个人工作流？"></textarea>
           <div class="goal-builder-actions">
             <div class="goal-examples" aria-label="需求示例">
               <button type="button" data-brainstorm-goal="制作一个属于自己的、符合自己偏好的网站设计 Skill">个性化设计 Skill</button>
@@ -239,6 +238,7 @@
           </div>
         </div>
       </form>
+      </section>
       <div class="brainstorm-viewbar">
         <div class="brainstorm-modes" role="tablist" aria-label="分析视角">
           <button type="button" class="active" id="brainstormTabFusion" data-brainstorm-mode="fusion" role="tab" aria-selected="true" aria-controls="brainstormFusionPanel" tabindex="0">融合方案</button>
@@ -282,6 +282,8 @@
       <div class="brainstorm-note">分析完全在本机完成，不会上传 DATA.md。补充标签、“为什么收藏”和研究结论，可持续扩大碰撞维度并提高置信度。</div>
     </section>
 
+    <section class="inspiration-workspace" id="inspirationWorkspace" aria-label="灵感来袭工作区">
+    <section class="inspiration-focus" aria-label="灵感收集与下一步">
     <!-- 沉浸分类横幅 -->
     <section class="banner" id="banner" hidden>
       <div class="banner-inner" id="bannerInner">
@@ -299,9 +301,14 @@
             </div>
           </div>
           <div class="banner-side">
-            <button type="button" class="brainstorm-bridge" id="brainstormBridgeBtn">
-              <span><strong>进入头脑风暴</strong><small id="brainstormBridgeLabel">基于当前项目生成方案</small></span><b aria-hidden="true">→</b>
-            </button>
+            <div class="banner-action-stack">
+              <button type="button" class="capture-bridge" id="bannerCaptureBtn" data-capture-trigger>
+                <span aria-hidden="true">＋</span><span><strong>收藏新内容</strong><small>粘贴链接，自动解析并留存</small></span>
+              </button>
+              <button type="button" class="brainstorm-bridge" id="brainstormBridgeBtn">
+                <span><strong>进入头脑风暴</strong><small id="brainstormBridgeLabel">基于当前项目生成方案</small></span><b aria-hidden="true">→</b>
+              </button>
+            </div>
             <div class="bnum" id="bannerNum">0<small>ITEMS</small></div>
           </div>
         </div>
@@ -322,6 +329,28 @@
       </div>
       <button class="d-close" id="dailyClose" title="今日不再显示" aria-label="关闭">×</button>
     </div>
+
+    </section>
+    <section class="collection-library" aria-labelledby="collectionLibraryTitle">
+      <header class="collection-library-header">
+        <div class="collection-library-copy">
+          <span>COLLECTION</span>
+          <h2 id="collectionLibraryTitle">全部灵感</h2>
+          <p>搜索、筛选并推进已经留存在本机的内容。</p>
+        </div>
+        <div class="collection-toolbar">
+          <div class="search">
+            <input type="text" id="searchInput" placeholder="搜索标题、简介或关键词" aria-label="搜索">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+            <button type="button" class="search-clear" id="searchClearBtn" aria-label="清除搜索" title="清除搜索" hidden>×</button>
+          </div>
+          <div class="view-switch" id="viewSwitch">
+            <div class="vs-slider" id="vsSlider"></div>
+            <button type="button" data-view="list" class="active" aria-pressed="true">列表</button>
+            <button type="button" data-view="board" aria-pressed="false">看板</button>
+          </div>
+        </div>
+      </header>
 
     <!-- 筛选 + 列头排序 + 密度 -->
     <div class="toolrow" id="toolrow" hidden>
@@ -365,6 +394,8 @@
 
     <!-- 看板视图 -->
     <section id="boardView" class="board" role="list" aria-label="灵感项目看板" hidden></section>
+    </section>
+    </section>
 
     <!-- 研究档案详情视图 -->
     <section id="entryView" class="entry-view" hidden>
@@ -470,7 +501,10 @@
       <div class="command-foot"><span><kbd>↑</kbd><kbd>↓</kbd> 选择</span><span><kbd>Enter</kbd> 执行</span><span>所有操作都在本机完成</span></div>
     </div>
   </div>
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+  <button type="button" class="mobile-capture" id="mobileCaptureBtn" data-capture-trigger aria-label="收藏内容" aria-keyshortcuts="N">
+    <span aria-hidden="true">＋</span><strong>收藏</strong>
+  </button>
   <!-- 粒子 -->
   <div class="particle-field" id="particleField"></div>
   <!-- 批量操作栏 -->

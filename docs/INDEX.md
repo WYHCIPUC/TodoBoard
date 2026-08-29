@@ -25,10 +25,12 @@
 ## 维护者：可靠性与发布
 
 - [可靠链接归档](plans/reliable-link-archive.md)：save-first、重试、人工补录和备份边界。
-- [下一稳定版发布清单](RELEASE-CHECKLIST.md)：自动化、数据、安全、浏览器和 Windows 门禁。
+- [稳定版发布清单](RELEASE-CHECKLIST.md)：自动化、数据、安全、浏览器和 Windows 门禁。
 - [Beta 用户测试](BETA-USER-TEST.md)：首次使用任务与观察指标。
 - [v2.2.0 发布说明](releases/v2.2.0.md)：兼容性、升级、恢复、回滚、验证证据和远端 Pending。
 - [v2.2 介绍视频](video/linggan-promo-design.md)：成片叙事、镜头映射、数据边界、节拍与交付规格。
+- [v2.3.0 发布说明](releases/v2.3.0.md)：三阶段工作流、交互稳定性、解析降级与 Windows 资产。
+- [v2.3 更新视频](video/linggan-v2.3-update-design.md)：新版增量叙事、真实界面素材和双版本交付。
 - [2.1.0 历史发行说明](release-notes-v2.1.0.md) 与根目录 [更新日志](../CHANGELOG.md)。
 
 ## 设计与实施记录
