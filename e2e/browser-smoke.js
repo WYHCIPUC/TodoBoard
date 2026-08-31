@@ -347,9 +347,9 @@ async function runBrowserSmoke() {
     const documentNode = await cdp.send("DOM.getDocument");
     const pressNode = await cdp.send("DOM.querySelector", { nodeId: documentNode.root.nodeId, selector: "#e2ePressButton" });
     await cdp.send("CSS.forcePseudoState", { nodeId: pressNode.nodeId, forcedPseudoClasses: ["active"] });
-    await delay(140);
+    await waitFor(cdp, 'Math.abs(parseFloat(getComputedStyle(document.querySelector("#e2ePressButton")).scale) - 0.975) <= 0.0005', "按钮按压动画未收敛到目标缩放");
     const pressState = await cdp.evaluate('(() => { const button = document.querySelector("#e2ePressButton"); return { scale: getComputedStyle(button).scale, reduced: matchMedia("(prefers-reduced-motion: reduce)").matches }; })()');
-    assert.strictEqual(pressState.scale, "0.975", "按钮按压状态未触发触觉反馈: " + JSON.stringify(pressState));
+    assert.ok(Math.abs(Number(pressState.scale) - 0.975) <= 0.0005, "按钮按压状态未触发触觉反馈: " + JSON.stringify(pressState));
     await cdp.send("CSS.forcePseudoState", { nodeId: pressNode.nodeId, forcedPseudoClasses: [] });
     await cdp.evaluate('document.querySelector("#e2ePressButton").remove(); true');
 
