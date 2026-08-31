@@ -1,4 +1,4 @@
-name: Prepare v2.2.0 release candidate
+name: Prepare release candidate
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ on:
       version:
         description: Exact package version
         required: true
-        default: 2.2.0
+        default: 2.3.0
         type: string
 
 permissions:
@@ -27,7 +27,7 @@ jobs:
           CANDIDATE_SHA: ${{ inputs.commit_sha }}
           CANDIDATE_VERSION: ${{ inputs.version }}
         run: |
-          test "$CANDIDATE_VERSION" = "2.2.0"
+          echo "$CANDIDATE_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'
           echo "$CANDIDATE_SHA" | grep -Eq '^[0-9a-f]{40}$'
           echo "sha=$CANDIDATE_SHA" >> "$GITHUB_OUTPUT"
 
@@ -86,11 +86,11 @@ jobs:
           .\scripts\recovery-drill.ps1 -EvidencePath "$env:RUNNER_TEMP\recovery-drill.json"
           .\scripts\build-executable.ps1 -OutputDirectory "$env:RUNNER_TEMP\candidate-a"
           .\scripts\build-executable.ps1 -OutputDirectory "$env:RUNNER_TEMP\candidate-b"
-          .\scripts\smoke-executable.ps1 -ExecutablePath "$env:RUNNER_TEMP\candidate-a\linggankanban-2.2.0-windows-x64.exe"
+          .\scripts\smoke-executable.ps1 -ExecutablePath "$env:RUNNER_TEMP\candidate-a\linggankanban-${{ inputs.version }}-windows-x64.exe"
           .\scripts\release-drill.ps1 -ReleaseDirectory "$env:RUNNER_TEMP\candidate-a" -ComparisonDirectory "$env:RUNNER_TEMP\candidate-b" -EvidencePath "$env:RUNNER_TEMP\release-drill.json"
       - uses: actions/upload-artifact@v4
         with:
-          name: v2.2.0-tested-assets-${{ needs.validate-input.outputs.sha }}
+          name: v${{ inputs.version }}-tested-assets-${{ needs.validate-input.outputs.sha }}
           path: |
             ${{ runner.temp }}/candidate-a/*
             ${{ runner.temp }}/recovery-drill.json

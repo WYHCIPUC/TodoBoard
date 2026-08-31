@@ -63,13 +63,15 @@ jobs:
           .\scripts\build-executable.ps1 -OutputDirectory "$env:RUNNER_TEMP\candidate-b"
       - name: Executable offline smoke
         shell: powershell
-        run: .\scripts\smoke-executable.ps1 -ExecutablePath "$env:RUNNER_TEMP\candidate-a\linggankanban-2.2.0-windows-x64.exe"
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          .\scripts\smoke-executable.ps1 -ExecutablePath "$env:RUNNER_TEMP\candidate-a\linggankanban-$version-windows-x64.exe"
       - name: Fresh extraction and reproducibility drill
         shell: powershell
         run: .\scripts\release-drill.ps1 -ReleaseDirectory "$env:RUNNER_TEMP\candidate-a" -ComparisonDirectory "$env:RUNNER_TEMP\candidate-b" -EvidencePath "$env:RUNNER_TEMP\release-drill.json"
       - uses: actions/upload-artifact@v4
         with:
-          name: v2.2.0-windows-candidate-${{ github.sha }}
+          name: windows-candidate-${{ github.sha }}
           path: |
             ${{ runner.temp }}/candidate-a/*
             ${{ runner.temp }}/recovery-drill.json
