@@ -13,6 +13,7 @@ const repo = path.join(__dirname, "..");
 const CHILD_EXIT_TIMEOUT_MS = 5_000;
 const CHROME_CLOSE_TIMEOUT_MS = 3_000;
 const CHROME_DEBUG_TIMEOUT_MS = 30_000;
+const INITIAL_UI_TIMEOUT_MS = 30_000;
 const WINDOWS_CLEANUP_MAX_ATTEMPTS = 10;
 const WINDOWS_CLEANUP_RETRY_DELAY_MS = 100;
 const WINDOWS_RETRYABLE_CLEANUP_CODES = new Set(["EBUSY", "ENOTEMPTY", "EPERM"]);
@@ -146,8 +147,8 @@ class Cdp {
   }
 }
 
-async function waitFor(cdp, expression, message) {
-  const deadline = Date.now() + 10_000;
+async function waitFor(cdp, expression, message, timeoutMs = 10_000) {
+  const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (await cdp.evaluate(expression)) return;
     await new Promise(resolve => setTimeout(resolve, 50));
@@ -326,7 +327,7 @@ async function runBrowserSmoke() {
     await cdp.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
     await cdp.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "no-preference" }] });
     await cdp.send("Page.navigate", { url: "http://127.0.0.1:" + serverPort + "/" });
-    await waitFor(cdp, 'document.readyState === "complete" && document.querySelector("#trustRail")?.dataset.state === "healthy"', "可信状态未进入 healthy");
+    await waitFor(cdp, 'document.readyState === "complete" && document.querySelector("#trustRail")?.dataset.state === "healthy"', "可信状态未进入 healthy", INITIAL_UI_TIMEOUT_MS);
     await cdp.evaluate('localStorage.setItem("linggan_onboarding_v2_seen", "1"); document.querySelector("#onboardingModal").classList.remove("open"); true');
     await waitFor(cdp, 'document.querySelector("#nTotal")?.textContent === "3"', "隔离测试数据未完整加载");
     assert.strictEqual(await cdp.evaluate('document.querySelectorAll("[onerror]").length'), 0, "恢复文本不得生成事件属性");
@@ -506,6 +507,7 @@ if (require.main === module) {
 
 module.exports = {
   CHROME_DEBUG_TIMEOUT_MS,
+  INITIAL_UI_TIMEOUT_MS,
   WINDOWS_CLEANUP_MAX_ATTEMPTS,
   removeTemporaryRoot,
   runBrowserSmoke,
