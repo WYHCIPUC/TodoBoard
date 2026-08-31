@@ -12,6 +12,7 @@ const { spawn } = require("child_process");
 const repo = path.join(__dirname, "..");
 const CHILD_EXIT_TIMEOUT_MS = 5_000;
 const CHROME_CLOSE_TIMEOUT_MS = 3_000;
+const CHROME_DEBUG_TIMEOUT_MS = 30_000;
 const WINDOWS_CLEANUP_MAX_ATTEMPTS = 10;
 const WINDOWS_CLEANUP_RETRY_DELAY_MS = 100;
 const WINDOWS_RETRYABLE_CLEANUP_CODES = new Set(["EBUSY", "ENOTEMPTY", "EPERM"]);
@@ -79,17 +80,24 @@ async function json(url) {
   });
 }
 
-async function waitForDebug(port) {
-  const deadline = Date.now() + 10_000;
-  while (Date.now() < deadline) {
+async function waitForDebug(port, runtime = {}) {
+  const timeoutMs = runtime.timeoutMs || CHROME_DEBUG_TIMEOUT_MS;
+  const now = runtime.now || Date.now;
+  const request = runtime.request || json;
+  const wait = runtime.wait || delay;
+  const deadline = now() + timeoutMs;
+  while (now() < deadline) {
+    if (runtime.child && childHasExited(runtime.child)) {
+      throw new Error("Chrome 在 DevTools 就绪前退出，退出码 " + runtime.child.exitCode);
+    }
     try {
-      const pages = await json("http://127.0.0.1:" + port + "/json/list");
+      const pages = await request("http://127.0.0.1:" + port + "/json/list");
       const page = pages.find(item => item.type === "page");
       if (page) return page.webSocketDebuggerUrl;
     } catch (_) {}
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await wait(100);
   }
-  throw new Error("Chrome DevTools 启动超时");
+  throw new Error("Chrome DevTools 在 " + timeoutMs + "ms 内未启动");
 }
 
 class Cdp {
@@ -300,7 +308,7 @@ async function runBrowserSmoke() {
       "--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check",
       "--remote-debugging-port=" + debugPort, "--user-data-dir=" + path.join(root, "chrome-profile"), "about:blank",
     ], { stdio: "ignore", windowsHide: true });
-    cdp = new Cdp(await waitForDebug(debugPort));
+    cdp = new Cdp(await waitForDebug(debugPort, { child: chrome }));
     await cdp.connect();
     await cdp.send("Page.enable");
     await cdp.send("Runtime.enable");
@@ -497,6 +505,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  CHROME_DEBUG_TIMEOUT_MS,
   WINDOWS_CLEANUP_MAX_ATTEMPTS,
   removeTemporaryRoot,
   runBrowserSmoke,
@@ -504,4 +513,5 @@ module.exports = {
   stopChrome,
   withTimeout,
   waitForChildExit,
+  waitForDebug,
 };
