@@ -35,6 +35,7 @@ assert.doesNotMatch(build, /SHASUMS256|\/latest|Compress-Archive/);
 assert.match(allowlist, /^portable runtime\/node\.exe$/m);
 assert.match(allowlist, /^portable build\/Release\/volume_lock\.node$/m);
 assert.match(allowlist, /^portable node_modules\/\*\*$/m);
+assert.match(allowlist, /^source scripts\/detect-windows-sdk\.js$/m);
 
 const result = spawnSync("powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path.join(__dirname, "build-portable.ps1"), "-ProjectRoot", root, "-DryRun"], {
   cwd: root,

@@ -73,6 +73,7 @@ source lib/upgrade.js
 source lib/volume-lock.js
 source lib/wecom.js
 source native/volume-lock/volume_lock.cc
+source scripts/detect-windows-sdk.js
 source scripts/doctor.js
 source scripts/open-browser.js
 source scripts/recover.js
