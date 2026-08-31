@@ -4,14 +4,14 @@
 
 ## 开发环境
 
-- Node.js ≥ 20（`.nvmrc` 锁定 20）
+- Node.js ≥ 22（`.nvmrc` 锁定 22）
 - 零构建工具：不引入打包器/编译器，纯 Node + 原生 JS
 - 依赖保持克制：仅引入确有必要的运行时依赖
 
 ## 常用命令
 
 ```bash
-npm install        # 安装依赖
+npm ci             # 按锁文件安装依赖
 npm start          # 启动看板服务（默认 http://127.0.0.1:3865）
 npm test           # 运行 lib/ 下全部单元测试
 npm run check      # 语法检查 + 全部测试

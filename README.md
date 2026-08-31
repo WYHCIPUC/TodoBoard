@@ -21,6 +21,21 @@
   <a href="#文档与开发">文档</a>
 </p>
 
+## 2 分钟看懂 v1.0 → v2.3
+
+从 v1.0 的本地收藏，到 v2.3 的主动归档、移动收集、关系画布、头脑风暴与可信恢复：这支视频用真实产品画面，完整展示灵感如何被收下、留住、连接并变成行动。
+
+<p align="center">
+  <a href="https://github.com/WYHCIPUC/TodoBoard/releases/download/v2.3.0/linggan-project-overview-v1-v2.3-calm-expanded.mp4">
+    <img src="./assets/readme/video-v1-v2.3.webp" width="100%" alt="灵感工作台 v1.0 到 v2.3 项目介绍视频，展示收集、归档、关系画布和头脑风暴四个真实使用结果">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/WYHCIPUC/TodoBoard/releases/download/v2.3.0/linggan-project-overview-v1-v2.3-calm-expanded.mp4"><strong>▶ 观看完整介绍视频（2:01）</strong></a><br>
+  <sub>Windows 桌面客户端 · 数据保存在本地 · 核心流程无需 API Key</sub>
+</p>
+
 ## 三种模式，一个工作流
 
 <p align="center">
