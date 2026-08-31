@@ -50,7 +50,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - run: npm ci
+      - run: npm ci --ignore-scripts
+      - name: Build native volume lock
+        run: npm run build:native
       - shell: powershell
         run: |
           if ((Get-Content package.json -Raw | ConvertFrom-Json).version -ne "${{ inputs.version }}") { throw "Version mismatch" }
@@ -80,7 +82,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
-      - run: npm ci
+      - run: npm ci --ignore-scripts
+      - name: Build native volume lock
+        run: npm run build:native
       - shell: powershell
         run: |
           .\scripts\recovery-drill.ps1 -EvidencePath "$env:RUNNER_TEMP\recovery-drill.json"
