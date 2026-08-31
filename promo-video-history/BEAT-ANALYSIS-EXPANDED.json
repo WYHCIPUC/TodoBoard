@@ -1,0 +1,12 @@
+{
+  "audio": "bgm-expanded.mp3",
+  "track": "G Eazy NBA type",
+  "artist": "Arulo",
+  "durationSeconds": 104.0,
+  "bpm": 86.65,
+  "beatZeroSeconds": 0.059507,
+  "beatIntervalSeconds": 0.69244085,
+  "phaseMethod": "low-frequency RMS grid search across 84-88 BPM",
+  "majorHits": [26, 46, 58, 64, 81, 95, 110, 122],
+  "strongestHits": [46, 110, 26]
+}

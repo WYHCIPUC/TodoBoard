@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>灵感工作台扩展版视频 Styleframes</title>
+  <style>
+    :root{--paper:#f6f0e7;--paper2:#fffaf3;--ink:#292621;--muted:#786f64;--accent:#c2410c;--purple:#7657c7;--green:#4f7c69;--line:#ded3c4}
+    *{box-sizing:border-box} body{margin:0;background:#171614;font-family:Inter,"Microsoft YaHei",sans-serif;color:var(--ink)}
+    .frame{position:relative;width:1920px;height:1080px;overflow:hidden;margin:0 0 40px;background:radial-gradient(circle at 50% 36%,var(--paper2),var(--paper) 68%);isolation:isolate}
+    .frame:after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.06;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.22'/%3E%3C/svg%3E")}
+    .kicker{font:700 25px/1.2 ui-monospace,monospace;letter-spacing:.2em;color:var(--accent)}
+    .rule{height:5px;background:var(--accent);border-radius:3px}
+    .open-copy{position:absolute;left:100px;top:118px;width:1180px}.open-copy h1{font:600 146px/.95 Georgia,"Noto Serif SC",serif;letter-spacing:-.065em;margin:56px 0 34px}.open-copy p{width:900px;font:600 42px/1.55 Inter,"Microsoft YaHei",sans-serif;color:var(--muted);margin:0}
+    .open-index{position:absolute;right:88px;top:88px;bottom:88px;width:430px;border-left:1px solid var(--line);padding:28px 0 0 48px}.open-index b{display:block;font:600 88px/1 Georgia,serif;color:var(--accent)}.open-index strong{display:block;margin-top:420px;font:600 58px/1.12 Georgia,"Noto Serif SC",serif}.open-index small{display:block;margin-top:22px;font:700 23px/1.4 ui-monospace,monospace;letter-spacing:.12em;color:var(--muted)}
+    .ledger{position:absolute;left:94px;right:94px;top:175px;border-top:2px solid var(--ink)}.row{display:grid;grid-template-columns:210px 390px 1fr 250px;min-height:150px;align-items:center;border-bottom:1px solid var(--line)}.row b{font:700 48px Georgia,serif;color:var(--accent)}.row h2{font:600 44px Georgia,"Noto Serif SC",serif;margin:0}.row p{font:600 27px/1.45 Inter,"Microsoft YaHei",sans-serif;color:var(--muted);margin:0}.row em{justify-self:end;font:700 21px ui-monospace,monospace;letter-spacing:.12em;font-style:normal;color:var(--green)}
+    .evidence-grid{display:grid;grid-template-columns:760px 1fr;height:100%}.evidence-copy{padding:96px 70px 70px 92px;border-right:1px solid var(--line)}.evidence-copy h2{font:600 74px/1.08 Georgia,"Noto Serif SC",serif;letter-spacing:-.045em;margin:28px 0}.evidence-copy p{font:600 31px/1.58 Inter,"Microsoft YaHei",sans-serif;color:var(--muted)}
+    .pipeline{margin-top:52px}.step{display:grid;grid-template-columns:54px 1fr 34px;gap:16px;align-items:center;min-height:88px;border-bottom:1px solid var(--line)}.step b{font:800 22px ui-monospace,monospace;color:var(--accent)}.step span{font:700 30px Inter,"Microsoft YaHei",sans-serif}.step i{width:14px;height:14px;border-radius:50%;background:var(--green)}
+    .proof{position:relative;background:#e9dfd1;overflow:hidden}.proof .window{position:absolute;left:80px;right:80px;top:96px;height:670px;border-radius:28px;overflow:hidden;border:8px solid var(--paper2);box-shadow:0 30px 90px rgba(45,32,22,.22)}.proof img{width:100%;height:100%;object-fit:cover;object-position:50% 0}.proof .caption{position:absolute;left:80px;right:80px;bottom:88px;padding:26px 30px;border-radius:20px;background:var(--ink);color:var(--paper2);font:600 30px/1.45 Georgia,"Noto Serif SC",serif}.proof .caption b{color:#b6d5c3}
+  </style>
+</head>
+<body>
+  <section class="frame" id="sf-brand">
+    <div class="open-copy"><div class="kicker">LOCAL-FIRST IDEA WORKBENCH · 1.0—2.3</div><div class="rule" style="width:172px;margin-top:30px"></div><h1>灵感工作台</h1><p>把可能消失的链接，变成可以继续研究、追溯和行动的本地资产。</p></div>
+    <aside class="open-index"><b>01—05</b><strong>先保全，<br>再理解。</strong><small>DISCOVER · SAVE · ARCHIVE<br>RESEARCH · CONNECT · VERIFY</small></aside>
+  </section>
+  <section class="frame" id="sf-timeline">
+    <div class="kicker" style="position:absolute;left:94px;top:86px">RELEASE LEDGER · FIVE STABLE VERSIONS</div>
+    <div class="ledger">
+      <div class="row"><b>v1.0</b><h2>本地收藏</h2><p>解析、分类、Markdown 与独立研究笔记。</p><em>FOUNDATION</em></div>
+      <div class="row"><b>v2.0</b><h2>桌面成品</h2><p>Windows 单文件、研究工具与可保存方案。</p><em>WORKBENCH</em></div>
+      <div class="row"><b>v2.1</b><h2>主动留存</h2><p>先保存后增强，正文、图片、元数据和原始页面写入本机。</p><em>ARCHIVE</em></div>
+      <div class="row"><b>v2.2</b><h2>可信恢复</h2><p>只读预检、显式确认、事务写入和恢复收据。</p><em>RECOVERY</em></div>
+      <div class="row"><b>v2.3</b><h2>三阶段闭环</h2><p>灵感来袭、关系画布、头脑风暴围绕同一条主线。</p><em>DECISION</em></div>
+    </div>
+  </section>
+  <section class="frame" id="sf-evidence">
+    <div class="evidence-grid"><div class="evidence-copy"><div class="kicker">PROACTIVE LOCAL ARCHIVE</div><h2>链接先收下，<br>证据再补全。</h2><p>网络失败不撤销收藏；成功取得的内容会成为可以核验、可以恢复的本地证据。</p><div class="pipeline"><div class="step"><b>01</b><span>URL 立即落盘</span><i></i></div><div class="step"><b>02</b><span>正文与元数据提取</span><i></i></div><div class="step"><b>03</b><span>关键图片与原始页面留存</span><i></i></div><div class="step"><b>04</b><span>队列重试与质量比较</span><i></i></div></div></div><div class="proof"><div class="window"><img src="public/textures/live/entry-full.png" alt="本地归档详情"></div><div class="caption">来源失效时，<b>今天成功取得的内容仍可在本机继续研究。</b></div></div></div>
+  </section>
+</body>
+</html>

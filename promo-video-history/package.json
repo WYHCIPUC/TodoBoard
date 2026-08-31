@@ -1,0 +1,21 @@
+{
+  "name": "linggan-project-history-promo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "capture:history": "node scripts/capture-history.mjs",
+    "styleframe": "node scripts/capture-styleframes.mjs",
+    "analyze:beats": "python scripts/analyze-beats.py",
+    "still": "remotion still src/index.ts LingganProjectHistory out/qa/frame.png",
+    "render": "remotion render src/index.ts LingganProjectHistory out/linggan-project-overview-v1-v2.3-calm-expanded-render-source.mp4 && npm run finalize:main",
+    "finalize:main": "ffmpeg -hide_banner -loglevel error -y -i out/linggan-project-overview-v1-v2.3-calm-expanded-render-source.mp4 -vf scale=in_range=full:out_range=tv,format=yuv420p,setparams=range=limited:color_primaries=bt709:color_trc=bt709:colorspace=bt709 -af volume=4.5dB -c:v libx264 -preset medium -crf 17 -color_primaries bt709 -color_trc bt709 -colorspace bt709 -color_range tv -c:a aac -b:a 192k -movflags +faststart out/linggan-project-overview-v1-v2.3-calm-expanded.mp4"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.517",
+    "@remotion/media": "4.0.517",
+    "puppeteer-core": "25.9.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "remotion": "4.0.517"
+  }
+}
