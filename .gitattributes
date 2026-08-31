@@ -1,0 +1,3 @@
+# v2.2 contract fixtures are immutable byte sequences whose SHA-256 values are
+# recorded in fixtures.json. Never rewrite their line endings on checkout.
+lib/fixtures/v2.2/** -text
