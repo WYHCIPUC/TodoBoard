@@ -15,6 +15,7 @@
     "test": "node scripts/run-tests.js",
     "test:scrapers:fixtures": "node scripts/run-tests.js --test-dir lib/scraper",
     "test:e2e": "node e2e/browser-smoke.js",
+    "test:e2e:data": "node e2e/data-paths-smoke.js",
     "test:launcher": "node scripts/run-tests.js --test scripts/build-executable.test.js",
     "test:integration": "node scripts/run-scraper-tests.js",
     "benchmark:scale": "node scripts/benchmark-scale.js",

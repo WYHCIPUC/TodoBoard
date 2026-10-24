@@ -5,7 +5,7 @@
 ## 1. 本地候选门禁
 
 - [ ] 捕获 `git status --short`、HEAD 和 T5 自有文件外部快照；确认未暂存、未提交。
-- [ ] Node.js 22 与 24 分别执行 `npm ci`、`npm run check`、`npm run coverage`、`npm run test:scrapers:fixtures`、`npm run test:e2e`、`npm run test:launcher`。
+- [ ] Node.js 22 与 24 分别执行 `npm ci`、`npm run check`、`npm run coverage`、`npm run test:scrapers:fixtures`、`npm run test:e2e`、`npm run test:e2e:data`、`npm run test:launcher`。
 - [ ] `npm run coverage` 对冻结高风险文件的 statements、branches、functions、lines 逐文件均不低于 90%，不接受聚合豁免。
 - [ ] 执行 T5 测试：
 
