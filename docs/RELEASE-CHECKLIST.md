@@ -33,7 +33,7 @@ npm test -- --test scripts/build-release.test.js --test scripts/build-portable.t
 - [ ] `gh auth login` 后，`gh auth status` 对预期 host/account 成功且权限足够。
 - [ ] 用 `gh repo view --json nameWithOwner,defaultBranchRef` 记录精确仓库与默认分支。
 - [ ] 用 rulesets、branch protection 和 tag protection API 记录所需 review、checks、签名、线性历史、部署和 tag 限制。
-- [ ] 确认候选 commit 满足规则，远端 `v2.3.0` tag 和 Release 均不存在。
+- [ ] 确认候选 commit 满足规则，目标版本 tag 和 Release 均不存在（注意：`v2.3.0` tag 已存在于旧提交，不能复用；新版本需显式确定）。
 - [ ] 审查 `git diff --cached --name-status`、精确 tag target、安装资产、两版介绍视频和 `SHA256SUMS.txt`。
 - [ ] 仅在以上全部保持绿色后，按可观察的独立步骤 push commit、等待远端 checks、创建 tag、创建 draft Release、上传并回读资产、最后公开。
 - [ ] 若 tag 后失败，按仓库批准的补偿流程删除未公开 Release、删除本次 tag 并 GET ref 确认 404；补偿失败标记 `release_recovery_required` 并停止自动重试。

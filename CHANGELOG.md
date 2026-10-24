@@ -24,6 +24,8 @@
 - 运行中的服务持有卷级锁，恢复 CLI/升级快照 CLI 会拒绝并发操作；备份事务在启动期复用同一把锁，避免自锁。
 - 浏览器端按职责拆分：`board.js`（核心/数据/待处理）、`board-relationship.js`、`board-brainstorm.js`、`board-data.js`、`board-study.js`、`board-commands.js`、`board-entry.js`；样式拆为 base/workspace/entry/data/relationship/brainstorm 六个文件，`board.css` 保留为兼容聚合入口。
 - 新增发布 allowlist 完整性测试，运行时 `require` 的相对模块与 `board.html` 本地资源必须全部进入发布清单，避免便携包/EXE 漏文件。
+- 升级前与快照恢复前增加容量预检：按数据/档案/队列体量要求可用空间（恢复预留两份），不足时以 `insufficient_disk` fail closed，不创建半成品快照。
+- 修复全新安装时卷级资源锁目录被误判为用户数据，导致 `bootstrap` 报“取得锁前后安装证据发生变化”而无法启动的问题；已在默认 `.linggan` 布局的 fresh 启动测试与打包 EXE smoke 中验证。
 
 ### 修复
 

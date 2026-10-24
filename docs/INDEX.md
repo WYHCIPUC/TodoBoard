@@ -23,6 +23,7 @@
 - [风险排查与升级安全加固](plans/2026-10-24-risk-audit-and-upgrade.md)：依赖、代码、配置与升级路径的风险清单、修复和验证证据。
 - [1000 条规模验收](plans/2026-10-24-1000-scale-acceptance.md)：隔离数据下的批量状态、搜索、待处理与头脑风暴响应时间。
 - [代码签名评估](plans/2026-10-24-code-signing-evaluation.md)：当前不采购证书的决策阈值、成本量级与启用后的最低要求。
+- [发布门禁执行证据](plans/2026-10-24-release-gate-evidence.md)：Node 22/24、T5、确定性构建、EXE smoke、fresh extraction 的实测结果与未通过项。
 - [公开 Beta PRD](product-upgrade-prd.md)：2.0 阶段的历史定位、目标与验收依据。
 - [头脑风暴知识图谱设计](plans/2026-08-06-brainstorm-knowledge-graph.md)：本地关联、证据与验证路径。
 

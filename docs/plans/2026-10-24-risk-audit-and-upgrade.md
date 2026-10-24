@@ -107,7 +107,8 @@
 - **改动**：`server.js` 启动改为调用 `bootstrap.bootstrap`：端口旧进程探测、可信写恢复、归档事务恢复、全数据目标卷锁、已有数据首次启动自动创建升级前快照、marker 幂等检查、`runUpgrade` 数据步骤，以及 `capture` 归档队列的停止/提升。
 - **fresh 安装修复**：`DATA.example.md` 保留无版本头示例；bootstrap 先经正式 `migrateData` 再校验，避免 fresh 启动被 schema 拒绝。
 - **锁协同**：运行中的服务持有卷级锁；`recover.js`、`upgrade-snapshot.js` 使用同一资源锁，恢复 CLI 会拒绝并发；备份事务通过 no-op lockFactory 复用启动期锁，避免自锁。
-- **验证**：新增 `lib/startup-bootstrap.test.js` 覆盖已有数据首次快照、二次启动不重复快照、fresh 初始化、运行中卷锁拒绝；`e2e/trusted-recovery-playwright.py` 恢复后重启通过。
+- **容量与 fresh 修复**：升级/恢复前按体量检查可用空间；fresh 安装先迁移示例数据；`hasUserEvidence` 忽略 `.linggan-owner-*.lock`，避免默认布局下资源锁被误判为用户数据。
+- **验证**：新增 `lib/startup-bootstrap.test.js` 覆盖已有数据首次快照、二次启动不重复快照、fresh 初始化（默认 `.linggan` 布局）、运行中卷锁拒绝与容量不足；`e2e/trusted-recovery-playwright.py` 恢复后重启通过；打包 EXE smoke 通过。
 
 ## 验证结果
 
@@ -139,6 +140,6 @@
 
 ## 后续建议（未纳入本次）
 
-1. 升级前容量预检与锁冲突只读服务仍待接入；当前锁冲突按 fail closed 退出并给出证据。
-2. 完成 Windows 10 干净账户人工验证、两次确定性构建、EXE smoke、fresh extraction/SHA 校验与远端 Release 门禁。
+1. 锁冲突只读服务仍待接入；当前锁冲突按 fail closed 退出并给出证据。
+2. 完成 Windows 10 干净账户人工验证、Windows 11 人工桌面/卸载检查与远端新版本 tag/Release；两次确定性构建、EXE smoke、fresh extraction/SHA 已完成。
 3. 评估 `c8`/`node-gyp` 主版本升级；在下次正式发版时同步更新 `release-candidate.yml` 默认版本与发布清单标题。
