@@ -506,6 +506,9 @@ async function runBrowserSmoke() {
     await waitFor(cdp, 'document.querySelector("#brainstormVerifyModal").classList.contains("open")', "方案验证弹层未打开");
     await cdp.evaluate('document.getElementById("brainstormVerifyStatus").value = "verified"; document.getElementById("brainstormVerifyResult").value = "E2E 小样本验证通过"; document.getElementById("brainstormVerifySave").click(); true');
     await waitFor(cdp, '!document.querySelector("#brainstormVerifyModal").classList.contains("open") && document.querySelector("#brainstormHistory").textContent.includes("已验证")', "方案验证未写入历史");
+    const feedback = await cdp.evaluate('localApiFetch("/api/brainstorm?mode=fusion&goal=" + encodeURIComponent("E2E 方案验证目标")).then(response => response.json()).then(data => ({ matched: data.summary.priorVerifications.matched, verified: data.summary.priorVerifications.verified, planStatus: data.fusion.plans[0] && data.fusion.plans[0].priorVerification && data.fusion.plans[0].priorVerification.status }))');
+    assert.ok(feedback.matched >= 1, "已验证结论未参与后续方案");
+    assert.strictEqual(feedback.planStatus, "verified", "后续方案未标记历史验证");
     assert.strictEqual(hash(realData), realBefore, "E2E 不得修改真实 DATA.md");
   } catch (error) {
     functionalError = error;

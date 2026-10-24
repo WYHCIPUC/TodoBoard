@@ -188,6 +188,7 @@ node scripts/recover.js --json
 | `ALLOW_PRIVATE_NETWORK` | — | 设为 `1` 允许抓取内网地址，不推荐 |
 | `API_RATE_LIMIT` | `300` | 单客户端每分钟数据 API 请求上限 |
 | `EXPENSIVE_RATE_LIMIT` | `30` | 单客户端每分钟抓取类请求上限 |
+| `REMOTE_RATE_LIMIT` | `30` | 钉钉等消息入口每分钟远程采集上限 |
 | `RATE_WINDOW_MS` | `60000` | 限流统计窗口，单位毫秒 |
 | `AUDIT_LOG_FILE` | 数据目录下 `.linggan/audit.log` | 操作审计日志 |
 | `SERVER_ERROR_LOG_FILE` | 数据目录下 `.linggan/server-error.log` | 服务异常日志 |

@@ -53,6 +53,7 @@ const scraper = require("./lib/scraper");
 const capture = require("./lib/capture");
 const wecom = require("./lib/wecom");
 const dingtalk = require("./lib/dingtalk");
+const { createRemoteCapture } = require("./lib/remote-capture");
 const { createRateLimiter } = require("./lib/ratelimit");
 const audit = require("./lib/audit");
 const bookmarks = require("./lib/bookmarks");
@@ -79,6 +80,8 @@ const JSON_BODY_LIMIT = Number(process.env.JSON_BODY_LIMIT) || 1024 * 1024;
 const RATE_WINDOW_MS = Number(process.env.RATE_WINDOW_MS) || 60 * 1000;
 const apiLimiter = createRateLimiter({ limit: Number(process.env.API_RATE_LIMIT) || 300, windowMs: RATE_WINDOW_MS });
 const expensiveLimiter = createRateLimiter({ limit: Number(process.env.EXPENSIVE_RATE_LIMIT) || 30, windowMs: RATE_WINDOW_MS });
+const remoteLimiter = createRateLimiter({ limit: Number(process.env.REMOTE_RATE_LIMIT) || 30, windowMs: RATE_WINDOW_MS });
+const remoteCapture = createRemoteCapture(capture);
 const DIR = __dirname;
 const README = process.env.README_FILE
   ? path.resolve(process.env.README_FILE)
@@ -1043,7 +1046,10 @@ const server = http.createServer((req, res) => {
     try {
       const mode = (u.searchParams.get("mode") || "fusion").trim();
       const goal = (u.searchParams.get("goal") || "").trim().slice(0, 400);
-      const result = brainstorm.analyze(store.readAll(), { entriesDir: entries.ENTRIES_DIR, mode, goal });
+      const feedback = brainstormHistory.listReports(50)
+        .filter(item => item.verification && item.verification.status !== "pending")
+        .map(item => ({ id: item.id, goal: item.goal, verification: item.verification }));
+      const result = brainstorm.analyze(store.readAll(), { entriesDir: entries.ENTRIES_DIR, mode, goal, feedback });
       sendJson(res, 200, { ok: true, ...result });
     } catch (e) { sendJson(res, 500, { ok: false, error: e.message }); }
     return;
@@ -1391,7 +1397,7 @@ const server = http.createServer((req, res) => {
             return;
           }
           try {
-            const result = await capture.addUrl(url, { stage: "企业微信" });
+            const result = await remoteCapture(url, "企业微信");
             const callbackReply = result.duplicate
               ? `已保存\n${result.id} ${result.title}`
               : `已保存\n${result.id} ${result.title}` + (result.archive && result.archive.state === "queued" ? "\n正在归档" : "");
@@ -1487,9 +1493,9 @@ function shutdown(reason, exitCode) {
     process.exit(exitCode);
   });
 }
-/* 统一入库辅助：抓取元数据 + 写入 DATA.md（供企业微信/钉钉等外部入口复用） */
+/* 统一入库辅助：远程入口只提交 URL，由 capture 负责去重、先保存后归档。 */
 async function addUrlToBoard(url) {
-  return capture.addUrl(url, { stage: "外部入口" });
+  return remoteCapture(url, "钉钉");
 }
 
 if (require.main === module) {
@@ -1536,7 +1542,11 @@ server.listen(PORT, HOST, () => {
   console.log("");
   // 钉钉 Stream 模式：自动连接接收消息（无需公网/域名）
   if (dingtalk.isEnabled()) {
-    dingtalk.start(addUrlToBoard).then(ok => {
+    dingtalk.start(async url => {
+      const rate = remoteLimiter.check("dingtalk");
+      if (!rate.allowed) return { ok: false, error: "请求过于频繁，请稍后再试" };
+      return addUrlToBoard(url);
+    }).then(ok => {
       if (ok) console.log("  钉钉 Stream 已就绪，给机器人发链接即可入库");
       else console.log("  [警告] 钉钉 Stream 连接失败，请检查 DINGTALK_CLIENT_ID/SECRET");
     }).catch(e => console.log("  [警告] 钉钉启动异常:", e.message));

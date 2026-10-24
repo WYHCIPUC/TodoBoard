@@ -3456,6 +3456,7 @@ function renderBrainstormFusion(fusion) {
         <div class="fusion-source-column"><h4>这些项目分别贡献什么</h4><div class="fusion-recipe">${contributionHtml(featured)}</div><p class="fusion-rationale">${escapeHtml(featured.rationale)}</p></div>
         <aside class="fusion-mvp"><span>最小验证路径</span><ol>${(featured.mvp || []).map(step => `<li>${escapeHtml(step)}</li>`).join("")}</ol></aside>
       </div>
+      ${featured.priorVerification ? `<p class="fusion-prior is-${escapeAttr(featured.priorVerification.status)}"><strong>历史${featured.priorVerification.status === "verified" ? "已验证" : "被否定"}</strong>：相似目标「${escapeHtml(featured.priorVerification.goal)}」${featured.priorVerification.result ? " · " + escapeHtml(featured.priorVerification.result) : ""} · 证据覆盖 ${Number(featured.priorVerification.evidenceCoverage) || 0}%${featured.priorVerification.reviewedAt ? " · 复盘 " + escapeHtml(lifecycleDayLabel(featured.priorVerification.reviewedAt)) : ""}</p>` : ""}
     </article>
     ${plans.length > 1 ? `<div class="fusion-alternatives"><div class="fusion-alternatives-title"><strong>备选组合</strong><span>需要更多方向时再展开</span></div>${plans.slice(1).map(item => `
       <details class="brainstorm-fusion-alt">

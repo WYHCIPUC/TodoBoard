@@ -3264,3 +3264,17 @@
     font-size: 11px;
   }
   .verify-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
+
+  .fusion-prior {
+    margin: 0;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-2);
+    color: var(--text-2);
+    font-size: 11.5px;
+    line-height: 1.6;
+  }
+  .fusion-prior strong { color: var(--ok); }
+  .fusion-prior.is-rejected { border-color: color-mix(in srgb, var(--danger) 35%, var(--border)); }
+  .fusion-prior.is-rejected strong { color: var(--danger); }
