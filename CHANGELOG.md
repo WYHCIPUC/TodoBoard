@@ -19,6 +19,7 @@
 - 新增 `npm run benchmark:scale` 可复现规模验收：1000 条数据下批量归档状态 108 ms、待处理 190 ms、搜索 11–20 ms、头脑风暴 290 ms，均无逐条请求风暴。
 - 新增 `npm run test:e2e:data` 真实浏览器五条主路径回归：收藏提交、研究笔记、截图上传/删除、回收站恢复、完整备份导出与恢复；CI 与发布候选流程同步执行。
 - 修复默认数据布局下 `.linggan/brainstorms`、`.linggan/trash`、`.linggan/recovered-orphans` 被备份事务误判为“与控制目录重叠”而无法导入备份的问题。
+- 新增 `npm run upgrade:snapshot` 升级快照操作器：只读列出快照；恢复前自动创建 rescue 快照，恢复数据、档案、运行队列并删除升级 marker，要求显式 SHA-256 与交互挑战确认。
 
 ### 修复
 
