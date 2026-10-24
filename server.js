@@ -128,21 +128,23 @@ function assertSafeStartup() {
 /* 同一数据目录只允许一个实例；正常退出在 exit 处理器中释放。 */
 let activeInstanceLock = null;
 let startupVolumeLocks = null;
+let readOnlyMode = false;
 function acquireStartupLock() {
   try {
     activeInstanceLock = instanceLock.acquireInstanceLock(store.CONTROL_DIR);
+    return { ok: true };
   } catch (error) {
+    const owner = error.details || {};
     if (error.code === "data_in_use") {
-      const owner = error.details || {};
-      console.error("\n  [错误] 另一个灵感工作台实例正在使用同一数据目录（PID " + (owner.pid || "未知") + "）。");
-      console.error("  请先关闭旧实例；若旧进程已退出，等待 2 分钟后重试，服务会只读隔离陈旧锁。");
+      console.error("\n  [只读] 另一个灵感工作台实例正在使用同一数据目录（PID " + (owner.pid || "未知") + "）。");
+      console.error("  本次将以只读模式启动；写入接口会返回 503，关闭旧实例后重启即可恢复写入。");
     } else if (error.code === "instance_lock_invalid") {
       console.error("\n  [错误] 实例锁内容无法验证，服务未启动。");
       console.error("  请确认没有其他实例后，检查并移走 " + path.join(store.CONTROL_DIR, "instance.lock") + "。");
     } else {
       console.error("\n  [错误] 无法取得实例锁，服务未启动：" + error.message);
     }
-    process.exit(1);
+    return { ok: false, code: error.code || "instance_lock_failed", owner };
   }
 }
 
@@ -936,6 +938,11 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (readOnlyMode && ["POST", "PUT", "PATCH", "DELETE"].includes(req.method) && !isControlRoute) {
+    sendJson(res, 503, { ok: false, error: "只读模式：另一个实例正在使用数据目录，关闭旧实例后重启才能写入" }, { "X-Linggan-Read-Only": "1" });
+    return;
+  }
+
   if (legacyMutationIdentity(req, res, p)) return;
 
   /* 桌面启动器专用：只接受来自本机回环连接的显式令牌，不授权浏览器会话。 */
@@ -1531,7 +1538,6 @@ process.on("unhandledRejection", reason => {
 });
 
 assertSafeStartup();
-acquireStartupLock();
 process.on("exit", () => {
   try { if (activeInstanceLock) activeInstanceLock.release(); } catch (_) {}
   try { if (startupVolumeLocks && startupVolumeLocks.release) startupVolumeLocks.release(); } catch (_) {}
@@ -1552,7 +1558,47 @@ function auditLegacyProcess() {
   });
 }
 
+function probePort(port) {
+  return new Promise(resolve => {
+    if (!port) return resolve(true);
+    const probe = net.createServer();
+    probe.once("error", () => resolve(false));
+    probe.listen(port, HOST, () => probe.close(() => resolve(true)));
+  });
+}
+
+async function findReadOnlyPort() {
+  if (process.env.READ_ONLY_PORT) {
+    const requested = Number(process.env.READ_ONLY_PORT);
+    if (Number.isInteger(requested) && requested > 0 && await probePort(requested)) return requested;
+  }
+  for (let offset = 0; offset < 10; offset++) {
+    if (await probePort(PORT + offset)) return PORT + offset;
+  }
+  return 0;
+}
+
+async function startReadOnly(lock) {
+  readOnlyMode = true;
+  try { capture.stop(); } catch (error) { recordError("archiveStop", error); }
+  const port = await findReadOnlyPort();
+  server.listen(port, HOST, () => {
+    const actual = server.address().port;
+    console.log("");
+    console.log("  灵感来袭 · 只读模式");
+    console.log("  http://localhost:" + actual);
+    console.log("  数据目录正在被 PID " + (lock.owner && lock.owner.pid || "未知") + " 使用；写入接口已禁用。");
+    console.log("  关闭旧实例后重启本程序即可恢复写入。");
+    console.log("");
+  });
+}
+
 async function startServer() {
+  const lock = acquireStartupLock();
+  if (!lock.ok) {
+    if (lock.code === "data_in_use") { await startReadOnly(lock); return; }
+    throw new Error("实例锁获取失败: " + lock.code);
+  }
   if (process.env.LINGGAN_SKIP_BOOTSTRAP === "1") {
     ensureDataFile();
     try {

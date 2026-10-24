@@ -142,6 +142,7 @@ npm start
 - 归档任务保存在带恢复副本的本地队列，服务重启后继续处理；自动重试耗尽时可以手动重试或粘贴正文。
 - 旧数据格式迁移前会先备份 `DATA.md` 和研究档案；已有数据首次按当前 migration contract 启动时会创建升级前完整快照，数据文件缺失但仍有档案时启动会拒绝继续。
 - 服务启动后持有全数据卷级锁；`recover.js`、`upgrade-snapshot.js` 等恢复工具会拒绝与运行中的服务并发操作，恢复前请先停止服务。
+- 同一数据目录已有实例时，新进程会启动只读看板（写接口返回 503）；关闭旧实例后重启即可恢复写入。
 - 恢复默认只做检查和预览；候选不明确时停止，只有显式选择并确认后才写入，写入后生成可验证收据。
 - 不要提交 `DATA.md`、自动备份、代理凭据或隧道密钥。
 
@@ -190,6 +191,7 @@ node scripts/recover.js --json
 | `API_RATE_LIMIT` | `300` | 单客户端每分钟数据 API 请求上限 |
 | `EXPENSIVE_RATE_LIMIT` | `30` | 单客户端每分钟抓取类请求上限 |
 | `REMOTE_RATE_LIMIT` | `30` | 钉钉等消息入口每分钟远程采集上限 |
+| `READ_ONLY_PORT` | — | 实例锁冲突时只读看板的指定端口；不设置则尝试原端口及后续端口 |
 | `RATE_WINDOW_MS` | `60000` | 限流统计窗口，单位毫秒 |
 | `AUDIT_LOG_FILE` | 数据目录下 `.linggan/audit.log` | 操作审计日志 |
 | `SERVER_ERROR_LOG_FILE` | 数据目录下 `.linggan/server-error.log` | 服务异常日志 |
