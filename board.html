@@ -71,6 +71,10 @@
         <button type="button" class="btn icon-btn" id="statsBtn" title="统计洞察" aria-label="统计洞察">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10 M10 20V4 M16 20v-8 M22 20H2"/></svg>
         </button>
+        <button type="button" class="btn icon-btn attention-btn" id="attentionBtn" title="待处理中心" aria-label="待处理中心" aria-haspopup="dialog" aria-controls="attentionModal">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14v16l-7-4-7 4z"/><path d="M9 8h6 M9 12h4"/></svg>
+          <span class="attention-count" id="attentionCount" hidden>0</span>
+        </button>
         <button type="button" class="btn icon-btn" id="trashBtn" title="回收站" aria-label="回收站">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16 M9 3h6l1 4H8l1-4z M6 7l1 14h10l1-14 M10 11v6 M14 11v6"/></svg>
         </button>
@@ -85,6 +89,7 @@
             <button type="button" class="more-panel-primary" role="menuitem" data-target="addBtn">＋ 收藏内容</button>
             <button type="button" role="menuitem" data-target="rollBtn">随机抽取</button>
             <button type="button" role="menuitem" data-target="statsBtn">统计洞察</button>
+            <button type="button" role="menuitem" data-target="attentionBtn">待处理中心</button>
             <button type="button" role="menuitem" data-target="trashBtn">回收站</button>
             <button type="button" role="menuitem" data-target="dataBtn">数据管理</button>
             <button type="button" role="menuitem" data-target="reloadBtn">重新读取数据</button>
@@ -544,6 +549,19 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="attentionModal" role="dialog" aria-modal="true" aria-labelledby="attentionTitle" aria-describedby="attentionSummary">
+    <div class="modal attention-modal">
+      <button type="button" class="modal-x" aria-label="关闭">×</button>
+      <div class="m-title" id="attentionTitle">待处理中心</div>
+      <div class="m-sub" id="attentionSummary">正在计算需要关注的项目…</div>
+      <div class="attention-policy" id="attentionPolicy"></div>
+      <div class="attention-list" id="attentionList" aria-live="polite"></div>
+      <div class="attention-actions">
+        <button type="button" class="btn" id="attentionRefreshBtn">重新计算</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="trashModal" role="dialog" aria-modal="true" aria-labelledby="trashTitle">
     <div class="modal">
       <button type="button" class="modal-x" aria-label="关闭">×</button>
@@ -562,11 +580,13 @@
         <button class="btn primary" id="exportBackupBtn">导出完整备份</button>
         <button class="btn" id="importBackupBtn">从备份恢复</button>
         <button class="btn" id="importBookmarksBtn">导入浏览器书签</button>
+        <button class="btn" id="integrityCheckBtn">检查归档完整性</button>
         <button class="btn" id="exportDiagnosticsBtn">导出诊断信息</button>
         <input type="file" id="backupFileInput" accept="application/json,.json" hidden>
         <input type="file" id="bookmarkFileInput" accept="text/html,.html,.htm" hidden>
       </div>
       <div class="data-note">书签 HTML 会在本机预检、过滤重复项并一次性导入“收件箱”；原文件夹会转换成标签，不会逐条访问外部网页。</div>
+      <pre class="diagnostics" id="integrityReport" hidden></pre>
       <pre class="diagnostics" id="diagnostics">正在读取诊断信息…</pre>
     </div>
   </div>
@@ -651,6 +671,17 @@
             </div>
           </div>
         </div>
+        <section class="study-lifecycle" id="studyLifecycle" aria-label="回顾计划">
+          <div class="sl-head"><strong>回顾计划</strong><span id="studyLifecycleMeta">尚未记录研究时间</span></div>
+          <div class="sl-dates" id="studyLifecycleDates"></div>
+          <div class="sl-controls">
+            <label for="studyReviewDate">下次回顾</label>
+            <input type="date" id="studyReviewDate">
+            <button type="button" class="btn" id="studyReviewSet">设定</button>
+            <button type="button" class="btn" id="studyReviewDone">标记已回顾</button>
+            <button type="button" class="btn" id="studyReviewClear">清除</button>
+          </div>
+        </section>
         <div class="s-note">
           <label for="studyNote">研究笔记（点击保存后写回 DATA.md）</label>
           <textarea id="studyNote" placeholder="记录研究发现、踩坑、心得…"></textarea>

@@ -147,6 +147,53 @@ function archiveResponseState(previous, response) {
   return { archive: normalizeArchiveStatus(response.archive || { id: current.id, state: "queued" }), recovered: true };
 }
 
+/* 待处理原因与回顾周期共用同一套展示语义，避免 UI 与服务端 code 漂移。 */
+const ATTENTION_REASON_META = Object.freeze({
+  archive_blocked: { label: "归档待处理", tone: "danger" },
+  review_due: { label: "回顾到期", tone: "warn" },
+  open_action: { label: "未完成行动项", tone: "info" },
+  stalled: { label: "研究停滞", tone: "warn" },
+  unresearched: { label: "未研究", tone: "info" },
+  lifecycle_missing: { label: "缺少创建时间", tone: "muted" },
+});
+
+function attentionReasonLabel(code) {
+  return (ATTENTION_REASON_META[code] || { label: String(code || "待处理") }).label;
+}
+
+function reviewDateValue(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = number => String(number).padStart(2, "0");
+  return date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate());
+}
+
+/* 日期输入按本地日终点转成规范 UTC；早于当前时间或格式非法时返回空串。 */
+function reviewTargetIso(value, now) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return "";
+  const target = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 23, 59, 59, 999);
+  if (!Number.isFinite(target.getTime())) return "";
+  return target.getTime() > (now === undefined ? Date.now() : now) ? target.toISOString() : "";
+}
+
+function reviewRelativeLabel(value, now) {
+  const time = Date.parse(value || "");
+  if (!Number.isFinite(time)) return "未安排";
+  const current = now === undefined ? Date.now() : now;
+  if (time < current) return "已到期";
+  const days = Math.ceil((time - current) / 86400000);
+  if (days === 0) return "今天到期";
+  return days + " 天后";
+}
+
+function lifecycleDayLabel(value) {
+  if (!value) return "未记录";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "未记录" : date.toLocaleDateString("zh-CN");
+}
+
 /* 把批量归档状态合并回条目；服务端状态永远覆盖本地默认值，缺失条目保持原样。 */
 function applyArchiveStatuses(items, statuses) {
   const byId = new Map();
@@ -298,9 +345,16 @@ function parseMarkdown(text) {
         status: STATUS[head[1]].key, statusSym: head[1], id: head[2],
         name: head[3].trim(), category: cat, catNo,
         fields: [], desc: "", url: null, image: null, difficulty: 0, tags: [],
+        lifecycle: { createdAt: null, lastStudiedAt: null, nextReviewAt: null },
         archive: normalizeArchiveStatus({ id: head[2] }),
       };
       items.push(cur);
+      continue;
+    }
+    const life = line.match(/^<!--\s*linggan:(created-at|last-studied-at|next-review-at)=([^\s]+)\s*-->/);
+    if (life && cur) {
+      const key = { "created-at": "createdAt", "last-studied-at": "lastStudiedAt", "next-review-at": "nextReviewAt" }[life[1]];
+      if (key) cur.lifecycle[key] = life[2];
       continue;
     }
     const field = line.match(/^-\s+\*\*([^*]+)\*\*：\s*(.*)$/);
@@ -368,7 +422,8 @@ function archiveControlsHtml(item) {
     ? `<button type="button" class="archive-action archive-retry" data-archive-action="retry" data-id="${escapeAttr(item.id)}">${retryLabel}</button>` : "";
   const manual = archive.state === "manual_required"
     ? `<button type="button" class="archive-action" data-archive-action="manual" data-id="${escapeAttr(item.id)}">补录内容</button>` : "";
-  return retry + manual;
+  const integrity = `<button type="button" class="archive-action" data-archive-action="integrity" data-id="${escapeAttr(item.id)}">校验归档</button>`;
+  return retry + manual + integrity;
 }
 function archivePanelHtml(item) {
   const archive = archiveStatus(item);
@@ -381,6 +436,7 @@ function archivePanelHtml(item) {
     ${error ? `<p class="archive-error">最近错误：${escapeHtml(error)}</p>` : ""}
     ${reason ? `<p class="archive-reason">处理说明：${escapeHtml(reason)}</p>` : ""}
     <p class="archive-raw-note">原始 HTML 超过 20 MB 时仅跳过 raw.html.gz，其余归档产物仍会保留。</p>
+    ${integrityResultHtml(item.id)}
     <div class="archive-controls" data-id="${escapeAttr(item.id)}">${archiveControlsHtml(item)}</div>
   </section>`;
 }
@@ -1000,6 +1056,7 @@ async function httpLoad() {
     applyText(d.content, d.name, "服务模式");
     loadTrustedState();
     loadArchiveStatuses(state.items);
+    loadAttention();
     setTimeout(maybeShowOnboarding, 180);
     const now = Date.now();
     await idbSet("backup", "readme", { name: d.name, content: d.content, time: now });
@@ -1142,7 +1199,7 @@ async function readJsonResponse(response) {
   let data;
   try { data = JSON.parse(text); }
   catch (_) { throw new Error(response.ok ? "服务响应格式异常" : `HTTP ${response.status}`); }
-  if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+  if (!response.ok) throw new Error(data.error || data.message || `HTTP ${response.status}`);
   return data;
 }
 
@@ -1203,6 +1260,7 @@ function handleArchiveControlClick(event) {
   const id = button.dataset.id;
   if (button.dataset.archiveAction === "retry") retryArchive(id, button);
   else if (button.dataset.archiveAction === "manual") openEntry(id);
+  else if (button.dataset.archiveAction === "integrity") checkEntryIntegrity(id, button);
   return true;
 }
 
@@ -1393,14 +1451,12 @@ document.getElementById("listView").addEventListener("click", e => {
 /* 列表详情面板：状态循环（待研究 → 进行中 → 已完成 → 待研究） */
 async function updateItemStatus(item, next) {
   if (!requireService("更新状态")) return false;
-  const sym = next === "doing" ? "🔄" : next === "done" ? "✅" : "⏳";
+  const action = next === "doing" ? "start" : next === "done" ? "complete" : "reset";
   try {
-    const r = await localApiFetch("/api/status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: item.id, status: sym }) });
-    const d = await r.json();
-    if (!d.ok) throw new Error(d.error || "更新失败");
-    item.status = next;
-    item.statusSym = sym;
-    render();
+    // 生命周期接口同时维护状态、研究时间与下次回顾，避免列表与档案状态不一致。
+    const data = await postLifecycle(item.id, action);
+    applyLifecycleResult(item.id, data);
+    if (studyItem && studyItem.id === String(item.id)) renderStudyLifecycle(studyItem);
     toast(`已更新为${statusLabel(item)}`, "ok");
     return true;
   } catch (e) {
@@ -1412,6 +1468,260 @@ async function cycleStatus(item) {
   const next = item.status === "pending" ? "doing" : item.status === "doing" ? "done" : "pending";
   return updateItemStatus(item, next);
 }
+
+/* ============================================================
+ * 生命周期 / 待处理中心 / 归档完整性
+ * 后端能力复用 v2.2 API，前端只负责展示、排序说明和显式操作。
+ * ============================================================ */
+async function postLifecycle(id, action, nextReviewAt) {
+  const body = { requestId: newRequestId(), id: String(id), action };
+  if (nextReviewAt) body.nextReviewAt = nextReviewAt;
+  const response = await localApiFetch("/api/lifecycle", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return readJsonResponse(response);
+}
+
+function applyLifecycleResult(id, data) {
+  const item = state.items.find(entry => entry.id === String(id));
+  if (!item) return null;
+  if (data && data.lifecycle) item.lifecycle = { ...item.lifecycle, ...data.lifecycle };
+  if (data && data.status && STATUS[data.status]) {
+    item.statusSym = data.status;
+    item.status = STATUS[data.status].key;
+  }
+  render();
+  return item;
+}
+
+function renderStudyLifecycle(item) {
+  const lifecycle = (item && item.lifecycle) || { createdAt: null, lastStudiedAt: null, nextReviewAt: null };
+  const meta = document.getElementById("studyLifecycleMeta");
+  if (meta) meta.textContent = lifecycle.lastStudiedAt ? `上次研究 ${lifecycleDayLabel(lifecycle.lastStudiedAt)}` : "尚未记录研究时间";
+  const dates = document.getElementById("studyLifecycleDates");
+  if (dates) {
+    const rows = [
+      ["创建", lifecycleDayLabel(lifecycle.createdAt)],
+      ["上次研究", lifecycleDayLabel(lifecycle.lastStudiedAt)],
+      ["下次回顾", lifecycle.nextReviewAt ? `${lifecycleDayLabel(lifecycle.nextReviewAt)}（${reviewRelativeLabel(lifecycle.nextReviewAt)}）` : "未安排"],
+    ];
+    dates.innerHTML = rows.map(([label, value]) => `<span><small>${escapeHtml(label)}</small><b>${escapeHtml(value)}</b></span>`).join("");
+  }
+  const input = document.getElementById("studyReviewDate");
+  if (input) {
+    input.value = reviewDateValue(lifecycle.nextReviewAt) || reviewDateValue(new Date(Date.now() + 30 * 86400000).toISOString());
+  }
+}
+
+let attentionData = null;
+let attentionLoadSequence = 0;
+const ATTENTION_REASON_ORDER = ["archive_blocked", "review_due", "open_action", "stalled", "unresearched", "lifecycle_missing"];
+
+function attentionItemFor(id) {
+  return state.items.find(item => item.id === String(id)) || null;
+}
+
+function updateAttentionBadge() {
+  const badge = document.getElementById("attentionCount");
+  const button = document.getElementById("attentionBtn");
+  if (!badge || !button) return;
+  const count = attentionData && attentionData.counts ? Number(attentionData.counts.items) || 0 : 0;
+  badge.textContent = count > 99 ? "99+" : String(count);
+  badge.hidden = count === 0;
+  button.setAttribute("aria-label", count ? `待处理中心，${count} 项` : "待处理中心");
+}
+
+async function loadAttention() {
+  if (!state.httpMode) {
+    attentionData = null;
+    updateAttentionBadge();
+    if (document.getElementById("attentionModal").classList.contains("open")) renderAttention(null);
+    return;
+  }
+  const sequence = ++attentionLoadSequence;
+  try {
+    const response = await localApiFetch("/api/attention", { cache: "no-store" });
+    const data = await readJsonResponse(response);
+    if (sequence !== attentionLoadSequence) return;
+    if (!data.ok) throw new Error(data.error || "待处理中心不可用");
+    attentionData = data;
+    updateAttentionBadge();
+    if (document.getElementById("attentionModal").classList.contains("open")) renderAttention(data);
+  } catch (error) {
+    if (sequence !== attentionLoadSequence) return;
+    if (document.getElementById("attentionModal").classList.contains("open")) {
+      document.getElementById("attentionList").innerHTML = `<div class="attention-empty">待处理中心暂时不可用：${escapeHtml(error.message)}</div>`;
+    }
+  }
+}
+
+function renderAttention(data) {
+  const summary = document.getElementById("attentionSummary");
+  const policy = document.getElementById("attentionPolicy");
+  const list = document.getElementById("attentionList");
+  if (!summary || !list) return;
+  if (!data) {
+    summary.textContent = "启动本地服务后可以计算待处理项目。";
+    policy.textContent = "";
+    list.innerHTML = '<div class="attention-empty">当前没有可读取的待处理数据。</div>';
+    return;
+  }
+  const counts = data.counts || {};
+  const byReason = counts.byReason || {};
+  const parts = ATTENTION_REASON_ORDER.filter(code => byReason[code]).map(code => `${attentionReasonLabel(code)} ${byReason[code]}`);
+  summary.textContent = `共 ${Number(counts.items) || 0} 项需要关注${parts.length ? "：" + parts.join(" · ") : ""}`;
+  policy.textContent = "排序依据：归档阻断 → 回顾到期 → 未完成行动项 → 研究停滞 → 未研究 → 缺少创建时间。每项显示命中规则与到期时间，操作只作用于本机数据。";
+  const items = data.items || [];
+  if (!items.length) {
+    list.innerHTML = '<div class="attention-empty">当前没有需要处理的项目。继续收集或研究即可。</div>';
+    return;
+  }
+  const statusClass = { "待研究": "st-pending", "进行中": "st-doing", "已完成": "st-done" };
+  list.innerHTML = items.map(item => {
+    const reasons = Array.isArray(item.reasons) ? item.reasons : [];
+    const due = reasons.find(reason => reason.dueAt);
+    const warning = (item.warnings || []).length ? `<span class="attention-warning">${escapeHtml(item.warnings.join(" / "))}</span>` : "";
+    return `<article class="attention-item" data-attention-id="${escapeAttr(item.id)}">
+      <div class="attention-item-head">
+        <span class="attention-id">#${escapeHtml(item.id)}</span>
+        <strong>${escapeHtml(item.title)}</strong>
+        <span class="status ${statusClass[item.status] || "st-pending"}">${escapeHtml(item.status || "待研究")}</span>
+      </div>
+      <div class="attention-reasons">${reasons.map(reason => `<span class="attention-reason tone-${escapeAttr((ATTENTION_REASON_META[reason.code] || {}).tone || "muted")}">${escapeHtml(attentionReasonLabel(reason.code))}</span>`).join("")}${warning}</div>
+      <div class="attention-meta">
+        <span>主因：${escapeHtml(attentionReasonLabel(item.primaryReason))}</span>
+        ${due ? `<span>到期：${escapeHtml(lifecycleDayLabel(due.dueAt))}</span>` : ""}
+        <span>最近活动：${escapeHtml(lifecycleDayLabel(item.activityAt))}</span>
+      </div>
+      <div class="attention-item-actions">
+        <button type="button" class="btn" data-attention-action="study">打开研究</button>
+        <button type="button" class="btn" data-attention-action="defer">延后 7 天</button>
+        ${item.status !== "已完成" ? '<button type="button" class="btn" data-attention-action="reviewed">已回顾</button><button type="button" class="btn primary" data-attention-action="complete">完成</button>' : ""}
+        ${reasons.some(reason => reason.code === "lifecycle_missing") ? '<button type="button" class="btn" data-attention-action="repair">修复时间</button>' : ""}
+      </div>
+    </article>`;
+  }).join("");
+}
+
+async function handleAttentionAction(action, id, button) {
+  if (action === "study") {
+    const item = attentionItemFor(id);
+    if (!item) { toast("条目已变化，请重新读取数据", "err"); return; }
+    openStudy(item);
+    return;
+  }
+  const mapping = { defer: "set_review", reviewed: "mark_reviewed", complete: "complete", repair: "repair_lifecycle" };
+  if (!mapping[action]) return;
+  if (button) { button.disabled = true; button.setAttribute("aria-busy", "true"); }
+  try {
+    const nextReviewAt = action === "defer" ? new Date(Date.now() + 7 * 86400000).toISOString() : undefined;
+    const data = await postLifecycle(id, mapping[action], nextReviewAt);
+    applyLifecycleResult(id, data);
+    await loadAttention();
+    toast(action === "defer" ? "已延后 7 天" : "待处理状态已更新", "ok");
+  } catch (error) {
+    toast("处理失败：" + error.message, "err");
+  } finally {
+    if (button) { button.disabled = false; button.removeAttribute("aria-busy"); }
+  }
+}
+
+const integrityResults = new Map();
+
+function integrityResultHtml(id) {
+  const result = integrityResults.get(String(id));
+  if (!result) return "";
+  const labels = {
+    healthy: "完整", damaged: "损坏", unverified: "未验证", unchecked: "未校验", not_archived: "未归档",
+  };
+  const label = labels[result.state] || result.state || "未知";
+  const reasons = Array.isArray(result.reasonCodes) && result.reasonCodes.length ? " · " + result.reasonCodes.join(" / ") : "";
+  const checked = result.checkedAt ? " · " + archiveTimeLabel(result.checkedAt) : "";
+  const tone = result.state === "healthy" ? "ok" : result.state === "damaged" ? "danger" : "muted";
+  return `<p class="archive-integrity tone-${tone}" role="status">完整性：${escapeHtml(label + reasons + checked)}</p>`;
+}
+
+async function checkEntryIntegrity(id, button) {
+  if (button && button.disabled) return;
+  if (!requireService("校验归档完整性")) return;
+  if (button) { button.disabled = true; button.setAttribute("aria-busy", "true"); }
+  try {
+    const data = await readJsonResponse(await localApiFetch("/api/archive/integrity/check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: [String(id)] }),
+    }));
+    const result = (data.results || [])[0];
+    if (!result) throw new Error("服务端未返回校验结果");
+    integrityResults.set(String(id), result);
+    const item = state.items.find(entry => entry.id === String(id));
+    render();
+    if (currentEntryId === String(id)) renderEntryArchive(item ? item.archive : { id, state: "queued" });
+    toast(result.state === "healthy" ? "归档文件校验通过" : "归档校验完成，请查看结果", result.state === "healthy" ? "ok" : "err");
+  } catch (error) {
+    toast("归档校验失败：" + error.message, "err");
+  } finally {
+    if (button) { button.disabled = false; button.removeAttribute("aria-busy"); }
+  }
+}
+
+async function checkAllIntegrity(button) {
+  if (!requireService("检查归档完整性")) return;
+  const ids = state.items.slice(0, 200).map(item => item.id);
+  const report = document.getElementById("integrityReport");
+  if (!ids.length) { toast("请先加载数据", "err"); return; }
+  if (button) { button.disabled = true; button.setAttribute("aria-busy", "true"); }
+  if (report) { report.hidden = false; report.textContent = "正在校验 " + ids.length + " 个条目的归档文件…"; }
+  try {
+    const data = await readJsonResponse(await localApiFetch("/api/archive/integrity/check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    }));
+    const results = data.results || [];
+    for (const result of results) integrityResults.set(String(result.id), result);
+    const counts = {};
+    for (const result of results) counts[result.state] = (counts[result.state] || 0) + 1;
+    const summary = Object.entries(counts).map(([state, count]) => `${state} ${count}`).join(" · ");
+    const damaged = results.filter(result => result.state === "damaged");
+    const lines = [
+      `已检查 ${results.length} 项${state.items.length > 200 ? "（仅前 200 项）" : ""}：${summary || "无结果"}`,
+      ...damaged.slice(0, 20).map(result => `#${result.id} 损坏：${(result.reasonCodes || []).join(" / ") || "未知原因"}`),
+      damaged.length > 20 ? `……另有 ${damaged.length - 20} 项损坏` : "",
+    ].filter(Boolean);
+    if (report) report.textContent = lines.join("\n");
+    render();
+    toast(damaged.length ? "发现需要修复的归档" : "归档完整性检查完成", damaged.length ? "err" : "ok");
+  } catch (error) {
+    if (report) report.textContent = "检查失败：" + error.message;
+    toast("完整性检查失败：" + error.message, "err");
+  } finally {
+    if (button) { button.disabled = false; button.removeAttribute("aria-busy"); }
+  }
+}
+
+function openAttention() {
+  document.getElementById("attentionModal").classList.add("open");
+  document.getElementById("attentionSummary").textContent = "正在计算需要关注的项目…";
+  document.getElementById("attentionList").innerHTML = '<div class="attention-empty">读取中…</div>';
+  if (attentionData) renderAttention(attentionData);
+  loadAttention();
+}
+
+document.getElementById("attentionBtn").addEventListener("click", openAttention);
+document.getElementById("attentionRefreshBtn").addEventListener("click", () => loadAttention());
+document.getElementById("attentionModal").addEventListener("click", event => {
+  if (event.target === event.currentTarget) event.currentTarget.classList.remove("open");
+});
+document.getElementById("attentionList").addEventListener("click", event => {
+  const button = event.target.closest("[data-attention-action]");
+  const article = button && button.closest("[data-attention-id]");
+  if (!button || !article) return;
+  handleAttentionAction(button.dataset.attentionAction, article.dataset.attentionId, button);
+});
+document.getElementById("integrityCheckBtn").addEventListener("click", event => checkAllIntegrity(event.currentTarget));
 async function copyLink(url) {
   if (!url) { toast("该条目无链接", "err"); return; }
   try { await navigator.clipboard.writeText(url); toast("链接已复制", "ok"); }
@@ -3697,6 +4007,7 @@ function openStudy(item) {
   const nf = item.fields.find(f => f.k.includes("研究要点"));
   studySavedNote = nf ? nf.v.replace(/^（待补充）$/, "") : "";
   document.getElementById("studyNote").value = studySavedNote;
+  renderStudyLifecycle(item);
   document.getElementById("studyExitGuard").hidden = true;
   // 状态按钮
   const stBtn = document.getElementById("studyStatus");
@@ -3743,6 +4054,7 @@ document.getElementById("studyStatus").addEventListener("click", async () => {
   try {
     const updated = await updateItemStatus(studyItem, next);
     if (updated) {
+      renderStudyLifecycle(studyItem);
       setButtonBusy(button, false);
       button.textContent = studyItem.status === "pending" ? "标记为进行中" : studyItem.status === "doing" ? "标记为已完成" : "重置为待研究";
       return;
@@ -3751,6 +4063,39 @@ document.getElementById("studyStatus").addEventListener("click", async () => {
     setButtonBusy(button, false);
   }
 });
+async function updateStudyLifecycle(action, nextReviewAt, button) {
+  if (!studyItem) return false;
+  if (!requireService("更新回顾计划")) return false;
+  setButtonBusy(button, true, "更新中…");
+  try {
+    const data = await postLifecycle(studyItem.id, action, nextReviewAt);
+    const updated = applyLifecycleResult(studyItem.id, data) || studyItem;
+    studyItem = updated;
+    renderStudyLifecycle(updated);
+    await loadAttention();
+    toast("回顾计划已更新", "ok");
+    return true;
+  } catch (error) {
+    toast("回顾计划更新失败：" + error.message, "err");
+    return false;
+  } finally {
+    setButtonBusy(button, false);
+  }
+}
+
+document.getElementById("studyReviewSet").addEventListener("click", async event => {
+  const value = document.getElementById("studyReviewDate").value;
+  const nextReviewAt = reviewTargetIso(value);
+  if (!nextReviewAt) { toast("请选择今天之后的日期", "err"); return; }
+  await updateStudyLifecycle("set_review", nextReviewAt, event.currentTarget);
+});
+document.getElementById("studyReviewDone").addEventListener("click", async event => {
+  await updateStudyLifecycle("mark_reviewed", undefined, event.currentTarget);
+});
+document.getElementById("studyReviewClear").addEventListener("click", async event => {
+  await updateStudyLifecycle("clear_review", undefined, event.currentTarget);
+});
+
 document.getElementById("timerToggle").addEventListener("click", () => {
   if (timerRunning) { stopTimer(); return; }
   if (timerLeft <= 0) { timerLeft = timerTotal; }

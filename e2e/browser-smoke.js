@@ -473,6 +473,31 @@ async function runBrowserSmoke() {
     assert.strictEqual(offlineResult.active, "recoveryError", "不可访问错误未获得焦点: " + JSON.stringify(offlineResult));
     await cdp.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
     await cdp.send("Network.setBlockedURLs", { urls: [] });
+
+    await cdp.evaluate('document.querySelector("#recoveryModal .modal-x").click(); true');
+    await waitFor(cdp, '!document.querySelector("#recoveryModal").classList.contains("open")', "恢复中心无法关闭");
+    await cdp.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
+    await cdp.evaluate('document.querySelector("#attentionBtn").click(); true');
+    await waitFor(cdp, 'document.querySelector("#attentionModal").classList.contains("open") && document.querySelectorAll("#attentionList .attention-item").length >= 3', "待处理中心未显示聚合条目");
+    const attentionState = await cdp.evaluate('({ items: document.querySelectorAll("#attentionList .attention-item").length, policy: document.querySelector("#attentionPolicy").textContent })');
+    assert.ok(attentionState.items >= 3, "待处理中心条目不足");
+    assert.match(attentionState.policy, /排序依据/, "待处理中心必须公开排序依据");
+    await cdp.evaluate('document.querySelector("#attentionList .attention-item [data-attention-action=defer]").click(); true');
+    await waitFor(cdp, 'document.querySelector("#toast").textContent.includes("延后")', "待处理延后未生效");
+    await cdp.evaluate('document.querySelector("#attentionList .attention-item [data-attention-action=study]").click(); true');
+    await waitFor(cdp, 'document.querySelector("#studyOverlay").classList.contains("open")', "待处理条目未打开研究模式");
+    await cdp.evaluate('document.querySelector("#studyReviewDone").click(); true');
+    await waitFor(cdp, 'document.querySelector("#studyLifecycleMeta").textContent.includes("上次研究")', "标记已回顾未更新时间");
+    await cdp.evaluate('document.querySelector("#studyBack").click(); true');
+    await waitFor(cdp, '!document.querySelector("#studyOverlay").classList.contains("open")', "研究模式无法关闭");
+    await cdp.evaluate('document.querySelector("#attentionModal .modal-x").click(); true');
+    await waitFor(cdp, '!document.querySelector("#attentionModal").classList.contains("open")', "待处理中心无法关闭");
+    await cdp.evaluate('document.querySelector("#dataBtn").click(); true');
+    await waitFor(cdp, 'document.querySelector("#dataModal").classList.contains("open")', "数据管理未打开");
+    await cdp.evaluate('document.querySelector("#integrityCheckBtn").click(); true');
+    await waitFor(cdp, '!document.querySelector("#integrityReport").hidden && /已检查/.test(document.querySelector("#integrityReport").textContent)', "完整性巡检未返回结果");
+    assert.match(await cdp.evaluate('document.querySelector("#integrityReport").textContent'), /已检查 3 项/, "完整性巡检条目数不正确");
+    await cdp.evaluate('document.querySelector("#dataModal .modal-x").click(); true');
     assert.strictEqual(hash(realData), realBefore, "E2E 不得修改真实 DATA.md");
   } catch (error) {
     functionalError = error;
@@ -498,7 +523,7 @@ async function runBrowserSmoke() {
     throw functionalError;
   }
   if (cleanupErrors.length) throw new AggregateError(cleanupErrors, "E2E 清理失败");
-  console.log("e2e: Chrome CDP relationship/recovery desktop/390px/offline/keyboard PASS");
+  console.log("e2e: Chrome CDP relationship/recovery/attention/lifecycle/integrity desktop/390px/offline/keyboard PASS");
 }
 
 if (require.main === module) {
