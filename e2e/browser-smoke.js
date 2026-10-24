@@ -498,6 +498,14 @@ async function runBrowserSmoke() {
     await waitFor(cdp, '!document.querySelector("#integrityReport").hidden && /已检查/.test(document.querySelector("#integrityReport").textContent)', "完整性巡检未返回结果");
     assert.match(await cdp.evaluate('document.querySelector("#integrityReport").textContent'), /已检查 3 项/, "完整性巡检条目数不正确");
     await cdp.evaluate('document.querySelector("#dataModal .modal-x").click(); true');
+    const savedPlan = await cdp.evaluate('localApiFetch("/api/brainstorm/save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ goal: "E2E 方案验证目标", mode: "fusion" }) }).then(response => response.json()).then(data => Boolean(data.ok && data.saved && data.saved.id))');
+    assert.strictEqual(savedPlan, true, "E2E 方案保存失败");
+    await cdp.evaluate('document.querySelector("#brainstormBtn").click(); true');
+    await waitFor(cdp, '!document.querySelector("#brainstormView").hidden && document.querySelector("[data-brainstorm-verify]")', "方案历史未显示验证入口");
+    await cdp.evaluate('document.querySelector("[data-brainstorm-verify]").click(); true');
+    await waitFor(cdp, 'document.querySelector("#brainstormVerifyModal").classList.contains("open")', "方案验证弹层未打开");
+    await cdp.evaluate('document.getElementById("brainstormVerifyStatus").value = "verified"; document.getElementById("brainstormVerifyResult").value = "E2E 小样本验证通过"; document.getElementById("brainstormVerifySave").click(); true');
+    await waitFor(cdp, '!document.querySelector("#brainstormVerifyModal").classList.contains("open") && document.querySelector("#brainstormHistory").textContent.includes("已验证")', "方案验证未写入历史");
     assert.strictEqual(hash(realData), realBefore, "E2E 不得修改真实 DATA.md");
   } catch (error) {
     functionalError = error;
@@ -523,7 +531,7 @@ async function runBrowserSmoke() {
     throw functionalError;
   }
   if (cleanupErrors.length) throw new AggregateError(cleanupErrors, "E2E 清理失败");
-  console.log("e2e: Chrome CDP relationship/recovery/attention/lifecycle/integrity desktop/390px/offline/keyboard PASS");
+  console.log("e2e: Chrome CDP relationship/recovery/attention/lifecycle/integrity/brainstorm-verification desktop/390px/offline/keyboard PASS");
 }
 
 if (require.main === module) {

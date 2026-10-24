@@ -178,6 +178,14 @@ function reviewTargetIso(value, now) {
   return target.getTime() > (now === undefined ? Date.now() : now) ? target.toISOString() : "";
 }
 
+/* 复盘日期允许记录过去的真实结果；只校验格式，不要求晚于当前时间。 */
+function dateValueToIso(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return "";
+  const target = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 23, 59, 59, 999);
+  return Number.isFinite(target.getTime()) ? target.toISOString() : "";
+}
+
 function reviewRelativeLabel(value, now) {
   const time = Date.parse(value || "");
   if (!Number.isFinite(time)) return "未安排";
@@ -3590,20 +3598,39 @@ async function loadBrainstorm() {
   }
 }
 
+const BRAINSTORM_VERIFY_META = Object.freeze({
+  pending: { label: "待验证", tone: "pending" },
+  verified: { label: "已验证", tone: "verified" },
+  rejected: { label: "被否定", tone: "rejected" },
+});
+let brainstormHistoryItems = [];
+let brainstormVerifyTarget = null;
+
 function renderBrainstormHistory(items) {
   const container = document.getElementById("brainstormHistory");
-  if (!items || !items.length) {
+  brainstormHistoryItems = Array.isArray(items) ? items : [];
+  if (!brainstormHistoryItems.length) {
     container.innerHTML = '<div class="brainstorm-history-empty">保存本轮方案后，会在这里形成决策记录。</div>';
     return;
   }
-  container.innerHTML = items.map(item => {
+  container.innerHTML = brainstormHistoryItems.map(item => {
     const created = item.createdAt && !Number.isNaN(new Date(item.createdAt).getTime())
       ? new Date(item.createdAt).toLocaleString() : "未知时间";
+    const verification = item.verification || { status: "pending", result: "", reviewedAt: null, evidenceCoverage: 0 };
+    const meta = BRAINSTORM_VERIFY_META[verification.status] || BRAINSTORM_VERIFY_META.pending;
+    const reviewed = verification.reviewedAt ? ` · 复盘 ${lifecycleDayLabel(verification.reviewedAt)}` : "";
     const url = "/api/brainstorm/report?id=" + encodeURIComponent(item.id);
-    return `<a class="brainstorm-history-item" href="${escapeAttr(url)}" title="下载 Markdown 方案">
-      <span><strong>${escapeHtml(item.goal)}</strong><small>${escapeHtml(created)} · ${escapeHtml(item.topPlan || "综合方案")} · ${escapeHtml(item.sourceCount || 0)} 个来源</small></span>
-      <b>下载 Markdown</b>
-    </a>`;
+    return `<div class="brainstorm-history-row">
+      <a class="brainstorm-history-item" href="${escapeAttr(url)}" title="下载 Markdown 方案">
+        <span><strong>${escapeHtml(item.goal)}</strong><small>${escapeHtml(created)} · ${escapeHtml(item.topPlan || "综合方案")} · ${escapeHtml(item.sourceCount || 0)} 个来源 · 证据覆盖 ${Number(verification.evidenceCoverage) || 0}%${escapeHtml(reviewed)}</small></span>
+        <b>下载 Markdown</b>
+      </a>
+      <div class="brainstorm-history-verify">
+        <span class="bh-status is-${escapeAttr(meta.tone)}">${escapeHtml(meta.label)}</span>
+        ${verification.result ? `<small title="${escapeAttr(verification.result)}">${escapeHtml(verification.result)}</small>` : ""}
+        <button type="button" class="btn" data-brainstorm-verify="${escapeAttr(item.id)}">记录验证</button>
+      </div>
+    </div>`;
   }).join("");
 }
 
@@ -3621,6 +3648,56 @@ async function loadBrainstormHistory() {
     container.innerHTML = `<div class="brainstorm-history-empty">保存记录读取失败：${escapeHtml(error.message)}</div>`;
   }
 }
+
+function openBrainstormVerify(id) {
+  const item = brainstormHistoryItems.find(entry => entry.id === String(id));
+  if (!item) { toast("方案记录已变化，请重新读取", "err"); return; }
+  brainstormVerifyTarget = item;
+  const verification = item.verification || { status: "pending", result: "", reviewedAt: null, evidenceCoverage: 0 };
+  document.getElementById("brainstormVerifyGoal").textContent = `${item.goal} · ${item.topPlan || "综合方案"}`;
+  document.getElementById("brainstormVerifyStatus").value = verification.status;
+  document.getElementById("brainstormVerifyDate").value = reviewDateValue(verification.reviewedAt) || reviewDateValue(new Date().toISOString());
+  document.getElementById("brainstormVerifyResult").value = verification.result || "";
+  document.getElementById("brainstormVerifyCoverage").textContent = `来源证据覆盖率：${Number(verification.evidenceCoverage) || 0}%（保存方案时的研究档案覆盖率）`;
+  document.getElementById("brainstormVerifyModal").classList.add("open");
+}
+
+async function saveBrainstormVerification() {
+  if (!brainstormVerifyTarget) return;
+  const button = document.getElementById("brainstormVerifySave");
+  const status = document.getElementById("brainstormVerifyStatus").value;
+  const reviewedAt = status === "pending" ? null : dateValueToIso(document.getElementById("brainstormVerifyDate").value);
+  if (status !== "pending" && !reviewedAt) { toast("请选择有效的复盘日期", "err"); return; }
+  setButtonBusy(button, true, "保存中…");
+  try {
+    const response = await localApiFetch("/api/brainstorm/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: brainstormVerifyTarget.id,
+        status,
+        result: document.getElementById("brainstormVerifyResult").value,
+        reviewedAt,
+      }),
+    });
+    await readJsonResponse(response);
+    document.getElementById("brainstormVerifyModal").classList.remove("open");
+    await loadBrainstormHistory();
+    toast("方案验证已保存", "ok");
+  } catch (error) {
+    toast("验证保存失败：" + error.message, "err");
+  } finally {
+    setButtonBusy(button, false);
+  }
+}
+
+document.getElementById("brainstormHistory").addEventListener("click", event => {
+  const button = event.target.closest("[data-brainstorm-verify]");
+  if (!button) return;
+  event.preventDefault();
+  openBrainstormVerify(button.dataset.brainstormVerify);
+});
+document.getElementById("brainstormVerifySave").addEventListener("click", saveBrainstormVerification);
 
 async function saveBrainstormReport() {
   if (!requireService("保存头脑风暴方案")) return;

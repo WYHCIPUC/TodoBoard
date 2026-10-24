@@ -539,6 +539,31 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="brainstormVerifyModal" role="dialog" aria-modal="true" aria-labelledby="brainstormVerifyTitle" aria-describedby="brainstormVerifyGoal">
+    <div class="modal verify-modal">
+      <button type="button" class="modal-x" aria-label="关闭">×</button>
+      <div class="m-title" id="brainstormVerifyTitle">记录方案验证</div>
+      <div class="m-sub" id="brainstormVerifyGoal"></div>
+      <label class="verify-field">验证状态
+        <select id="brainstormVerifyStatus">
+          <option value="pending">待验证</option>
+          <option value="verified">已验证</option>
+          <option value="rejected">被否定</option>
+        </select>
+      </label>
+      <label class="verify-field">复盘日期
+        <input type="date" id="brainstormVerifyDate">
+      </label>
+      <label class="verify-field">验证结果
+        <textarea id="brainstormVerifyResult" maxlength="1200" rows="4" placeholder="记录真实使用、实验结果或未通过的原因"></textarea>
+      </label>
+      <p class="verify-coverage" id="brainstormVerifyCoverage"></p>
+      <div class="verify-actions">
+        <button type="button" class="btn primary" id="brainstormVerifySave">保存验证</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 统计模态 -->
   <div class="modal-overlay" id="statsModal" role="dialog" aria-modal="true" aria-labelledby="statsTitle">
     <div class="modal">

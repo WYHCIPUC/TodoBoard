@@ -1084,6 +1084,16 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (p === "/api/brainstorm/verify" && req.method === "POST") {
+    handleJson(req, res, data => {
+      const id = String(data.id || "").trim();
+      if (!/^\d{8}T\d{6}-[0-9a-z]{6,12}$/.test(id)) throw requestError("非法方案编号", 400);
+      const saved = brainstormHistory.updateVerification(id, data);
+      sendJson(res, 200, { ok: true, saved });
+    });
+    return;
+  }
+
   if (p === "/api/backup" && req.method === "GET") {
     try {
       const payload = JSON.stringify(backup.exportBundle());
