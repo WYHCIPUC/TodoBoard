@@ -89,7 +89,7 @@
 
 ### Windows 一键启动
 
-1. 公开下载：打开 [GitHub Releases](https://github.com/WYHCIPUC/TodoBoard/releases)，下载 `linggankanban-2.3.0-windows-portable-x64.zip`，解压后双击 `start-portable.bat`。
+1. 公开下载：打开 [GitHub Releases](https://github.com/WYHCIPUC/TodoBoard/releases)，下载 `linggankanban-2.3.1-windows-portable-x64.zip`，解压后双击 `start-portable.bat`。
 2. 人工购买：收到 `linggankanban-<版本>-windows-x64.exe` 后直接双击。新版单文件程序会打开独立桌面窗口；若 Microsoft Edge 不可用，则自动回退到默认浏览器兼容模式。
 
 运行环境会缓存到 `%LOCALAPPDATA%\LingganKanban\app`，个人数据和备份独立保存在“文档\LingganKanban”。升级或替换 EXE 不会覆盖数据。
@@ -153,7 +153,7 @@ node scripts/recover.js --help
 node scripts/recover.js --json
 ```
 
-执行恢复前请停止其他实例，先复制整个数据目录，并按命令输出显式指定事务、候选与确认选项。详细步骤见 [v2.3.0 发布说明](docs/releases/v2.3.0.md)。
+执行恢复前请停止其他实例，先复制整个数据目录，并按命令输出显式指定事务、候选与确认选项。详细步骤见 [v2.3.1 发布说明](docs/releases/v2.3.1.md)。
 
 完整边界和漏洞报告方式见 [安全策略](SECURITY.md)。
 
@@ -168,6 +168,7 @@ node scripts/recover.js --json
 - [可靠链接归档说明](docs/plans/reliable-link-archive.md) — 主动备份、重试状态、X Cookie 与发布边界
 - [钉钉接入指南](docs/DINGTALK-GUIDE.md) — Stream 模式，零域名零公网
 - [更新日志](CHANGELOG.md) — 版本变化
+- [v2.3.1 发布说明](docs/releases/v2.3.1.md) — 升级快照、只读保护、验证闭环与维护版校验
 - [v2.3.0 发布说明](docs/releases/v2.3.0.md) — 三阶段工作流、兼容性、升级、恢复、回滚与校验
 - [v2.3 更新视频设计](docs/video/linggan-v2.3-update-design.md) — 新版功能映射、镜头节奏与数据边界
 - [贡献指南](CONTRIBUTING.md) — 开发流程与提交规范
