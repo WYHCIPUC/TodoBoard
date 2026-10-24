@@ -55,6 +55,7 @@ node scripts/upgrade-snapshot.js --list
 
 ```powershell
 node scripts/upgrade-snapshot.js --restore <快照名> --hash <manifest SHA-256> --apply --interactive
+node scripts/upgrade-snapshot.js --remigrate <recoveryPrepareId> --apply --interactive
 ```
 
 若输出 `ambiguous_recovery`、`data_in_use`、`legacy_instance_may_be_running` 或 `manual_recovery_required`，不要猜测候选或删除锁。保存诊断输出，确认旧进程已停止，再按 `--help` 显式提供事务、候选、`--apply` 与交互确认。每次变更前会生成已验证副本，完成后复验并写入收据；同一操作 ID 重跑不会重复生效。

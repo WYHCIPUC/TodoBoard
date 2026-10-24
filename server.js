@@ -37,6 +37,7 @@
 "use strict";
 /* c8 ignore start -- T4 coverage begins at the trusted API seam below; the legacy server is regression-tested separately. */
 const http = require("http");
+const net = require("net");
 const fs = require("fs");
 const path = require("path");
 const fetcher = require("./lib/fetcher");
@@ -126,6 +127,7 @@ function assertSafeStartup() {
 
 /* 同一数据目录只允许一个实例；正常退出在 exit 处理器中释放。 */
 let activeInstanceLock = null;
+let startupVolumeLocks = null;
 function acquireStartupLock() {
   try {
     activeInstanceLock = instanceLock.acquireInstanceLock(store.CONTROL_DIR);
@@ -393,6 +395,8 @@ function createTrustedServices(overrides = {}) {
     coordinator,
     nativeBinding: nativeBinding || undefined,
     volumeIdProvider: nativeBinding ? value => nativeBinding.getVolumeId(value) : undefined,
+    // 启动期已经持有整个数据卷的锁；备份事务复用该锁，不再重复获取。
+    lockFactory: overrides.lockFactory || (startupVolumeLocks ? () => ({ release() {} }) : undefined),
   });
   const idempotency = overrides.idempotency || new IdempotencyStore(path.join(paths.controlDir, "idempotency"));
   return {
@@ -1435,7 +1439,19 @@ const server = http.createServer((req, res) => {
     "/": { file: "board.html", type: "text/html; charset=utf-8" },
     "/board.html": { file: "board.html", type: "text/html; charset=utf-8" },
     "/board.css": { file: "board.css", type: "text/css; charset=utf-8" },
+    "/board-base.css": { file: "board-base.css", type: "text/css; charset=utf-8" },
+    "/board-workspace.css": { file: "board-workspace.css", type: "text/css; charset=utf-8" },
+    "/board-entry.css": { file: "board-entry.css", type: "text/css; charset=utf-8" },
+    "/board-data.css": { file: "board-data.css", type: "text/css; charset=utf-8" },
+    "/board-relationship.css": { file: "board-relationship.css", type: "text/css; charset=utf-8" },
+    "/board-brainstorm.css": { file: "board-brainstorm.css", type: "text/css; charset=utf-8" },
     "/board.js": { file: "board.js", type: "application/javascript; charset=utf-8" },
+    "/board-relationship.js": { file: "board-relationship.js", type: "application/javascript; charset=utf-8" },
+    "/board-brainstorm.js": { file: "board-brainstorm.js", type: "application/javascript; charset=utf-8" },
+    "/board-data.js": { file: "board-data.js", type: "application/javascript; charset=utf-8" },
+    "/board-study.js": { file: "board-study.js", type: "application/javascript; charset=utf-8" },
+    "/board-commands.js": { file: "board-commands.js", type: "application/javascript; charset=utf-8" },
+    "/board-entry.js": { file: "board-entry.js", type: "application/javascript; charset=utf-8" },
   };
   if (STATIC[p]) {
     try {
@@ -1480,6 +1496,10 @@ function shutdown(reason, exitCode) {
   if (reason) console.log("\n  正在停止服务：" + reason);
   try { dingtalk.stop(); } catch (error) { recordError("integrationStop", error); }
   try { capture.stop(); } catch (error) { recordError("archiveStop", error); }
+  try {
+    if (activeInstanceLock) { activeInstanceLock.release(); activeInstanceLock = null; }
+  } catch (error) { recordError("instanceLockRelease", error); }
+  try { if (startupVolumeLocks && startupVolumeLocks.release) startupVolumeLocks.release(); } catch (error) { recordError("volumeLockRelease", error); }
   const forceExit = setTimeout(() => process.exit(exitCode), 3000);
   forceExit.unref();
   if (!server.listening) {
@@ -1514,19 +1534,65 @@ assertSafeStartup();
 acquireStartupLock();
 process.on("exit", () => {
   try { if (activeInstanceLock) activeInstanceLock.release(); } catch (_) {}
+  try { if (startupVolumeLocks && startupVolumeLocks.release) startupVolumeLocks.release(); } catch (_) {}
 });
-ensureDataFile();
-let migrationSummary;
-try {
-  migrationSummary = migrate.migrateData({ dataFile: README, entriesDir: entries.ENTRIES_DIR });
-} catch (e) {
-  recordError("dataMigration", e);
-  console.error("\n  [错误] 数据升级失败，服务未启动。" + e.message);
-  process.exit(1);
-}
-try { capture.start(); } catch (e) { recordError("archiveStart", e); }
 
-server.listen(PORT, HOST, () => {
+let migrationSummary;
+let startupRuntime = null;
+
+/* 旧版本没有实例锁；启动前探测端口，避免两个进程同时写同一数据目录。 */
+function auditLegacyProcess() {
+  return new Promise((resolve, reject) => {
+    const probe = net.createServer();
+    probe.once("error", error => {
+      if (error.code === "EADDRINUSE") resolve({ ok: false, reason: "port_in_use", port: PORT });
+      else reject(error);
+    });
+    probe.listen(PORT, HOST, () => probe.close(() => resolve({ ok: true, summary: "port-free" })));
+  });
+}
+
+async function startServer() {
+  if (process.env.LINGGAN_SKIP_BOOTSTRAP === "1") {
+    ensureDataFile();
+    try {
+      migrationSummary = migrate.migrateData({ dataFile: README, entriesDir: entries.ENTRIES_DIR });
+    } catch (error) {
+      recordError("dataMigration", error);
+      throw error;
+    }
+    try { capture.start(); } catch (error) { recordError("archiveStart", error); }
+  } else {
+    try { capture.stop(); } catch (error) { recordError("archiveStop", error); }
+    const paths = upgrade.resolvePaths({
+      dataFile: README,
+      entriesDir: entries.ENTRIES_DIR,
+      brainstormsDir: brainstormHistory.REPORTS_DIR,
+      trashDir: trash.TRASH_DIR,
+      orphansDir: process.env.RECOVERED_ORPHANS_DIR || path.join(store.CONTROL_DIR, "recovered-orphans"),
+      controlDir: store.CONTROL_DIR,
+      queueFile: path.join(store.CONTROL_DIR, "archive-jobs.json"),
+    });
+    const state = await bootstrap.bootstrap({
+      ...paths,
+      exampleFile: path.join(DIR, "DATA.example.md"),
+      coordinator: defaultCoordinator,
+      archiveFactory: () => capture.archive,
+      auditLegacy: auditLegacyProcess,
+    });
+    if (state.state !== "ready") {
+      const release = state.release ? state.release() : Promise.resolve();
+      await release.catch(() => {});
+      throw new Error("启动检查未通过: " + (state.code || state.state));
+    }
+    startupRuntime = state;
+    startupVolumeLocks = state.locks;
+    trustedServices = null;
+    await state.promote();
+    migrationSummary = state.upgraded && state.upgraded.results && state.upgraded.results.dataSchema;
+  }
+
+  server.listen(PORT, HOST, () => {
   console.log("");
   console.log("  灵感来袭 · 待办看板");
   console.log("  http://localhost:" + PORT);
@@ -1556,6 +1622,15 @@ server.listen(PORT, HOST, () => {
       openBrowser("http://127.0.0.1:" + PORT + "/");
     }
   } catch (_) { /* 打开浏览器失败不阻塞 */ }
+  });
+}
+
+startServer().catch(error => {
+  recordError("startup", error);
+  console.error("\n  [错误] 启动失败：" + error.message);
+  try { if (startupRuntime && startupRuntime.release) startupRuntime.release(); } catch (_) {}
+  try { if (startupVolumeLocks && startupVolumeLocks.release) startupVolumeLocks.release(); } catch (_) {}
+  process.exit(1);
 });
 }
 

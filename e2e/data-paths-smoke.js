@@ -119,7 +119,7 @@ function stopChild(child) {
   const server = spawn(process.execPath, [path.join(REPO, "server.js")], {
     cwd: REPO,
     env: Object.assign({}, process.env, {
-      PORT: String(port), HOST: "127.0.0.1", NO_OPEN: "1",
+      PORT: String(port), HOST: "127.0.0.1", NO_OPEN: "1", LINGGAN_SKIP_BOOTSTRAP: "1",
       README_FILE: dataFile, ENTRIES_DIR: entriesDir,
       CONTROL_DIR: path.join(root, ".linggan"),
       TRASH_DIR: path.join(root, "trash"), BRAINSTORM_DIR: path.join(root, "brainstorms"),

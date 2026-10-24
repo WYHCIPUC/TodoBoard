@@ -27,8 +27,9 @@ function buildDemo(outputDir) {
   fs.rmSync(output, { recursive: true, force: true });
   fs.mkdirSync(output, { recursive: true });
   fs.copyFileSync(path.join(ROOT, "board.html"), path.join(output, "index.html"));
-  fs.copyFileSync(path.join(ROOT, "board.css"), path.join(output, "board.css"));
-  fs.copyFileSync(path.join(ROOT, "board.js"), path.join(output, "board.js"));
+  for (const file of ["board.css", "board-base.css", "board-workspace.css", "board-entry.css", "board-data.css", "board-relationship.css", "board-brainstorm.css", "board.js", "board-relationship.js", "board-brainstorm.js", "board-data.js", "board-study.js", "board-commands.js", "board-entry.js"]) {
+    fs.copyFileSync(path.join(ROOT, file), path.join(output, file));
+  }
   fs.copyFileSync(path.join(ROOT, "DATA.example.md"), path.join(output, "DATA.example.md"));
   fs.writeFileSync(path.join(output, "demo-brainstorm.json"), JSON.stringify({ ok: true, ...analysis }, null, 2) + "\n", "utf8");
   fs.writeFileSync(path.join(output, ".nojekyll"), "", "utf8");

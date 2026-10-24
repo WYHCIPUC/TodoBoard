@@ -291,7 +291,7 @@ async function runBrowserSmoke() {
     cwd: repo,
     env: {
       ...process.env,
-      PORT: String(serverPort), HOST: "127.0.0.1", NO_OPEN: "1", README_FILE: dataFile,
+      PORT: String(serverPort), HOST: "127.0.0.1", NO_OPEN: "1", LINGGAN_SKIP_BOOTSTRAP: "1", README_FILE: dataFile,
       ENTRIES_DIR: path.join(root, "entries"), TRASH_DIR: path.join(root, "trash"),
       BRAINSTORM_DIR: path.join(root, "brainstorms"), RECOVERED_ORPHANS_DIR: path.join(root, "recovered-orphans"),
       AUDIT_LOG_FILE: path.join(root, "audit.log"), SERVER_ERROR_LOG_FILE: path.join(root, "server-error.log"),

@@ -235,7 +235,7 @@ def run():
             page.evaluate("document.querySelector('#onboardingModal').classList.remove('open')")
             expect(page.locator("#trustRail")).to_have_attribute("data-state", "verified")
 
-            server.terminate_external_session()
+            server.stop()
             server.start()
             renewed = page.evaluate("""async () => {
               const response = await localApiFetch("/api/upgrade/preview", {

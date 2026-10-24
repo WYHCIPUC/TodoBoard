@@ -19,7 +19,11 @@
 - 新增 `npm run benchmark:scale` 可复现规模验收：1000 条数据下批量归档状态 108 ms、待处理 190 ms、搜索 11–20 ms、头脑风暴 290 ms，均无逐条请求风暴。
 - 新增 `npm run test:e2e:data` 真实浏览器五条主路径回归：收藏提交、研究笔记、截图上传/删除、回收站恢复、完整备份导出与恢复；CI 与发布候选流程同步执行。
 - 修复默认数据布局下 `.linggan/brainstorms`、`.linggan/trash`、`.linggan/recovered-orphans` 被备份事务误判为“与控制目录重叠”而无法导入备份的问题。
-- 新增 `npm run upgrade:snapshot` 升级快照操作器：只读列出快照；恢复前自动创建 rescue 快照，恢复数据、档案、运行队列并删除升级 marker，要求显式 SHA-256 与交互挑战确认。
+- 新增 `npm run upgrade:snapshot` 升级快照操作器：只读列出快照；恢复前自动创建 rescue 快照，恢复数据、档案、运行队列并删除升级 marker，要求显式 SHA-256 与交互挑战确认；支持 `--remigrate` 重新执行迁移。
+- 服务启动接入 `bootstrap`/`runUpgrade`：取得实例锁与全数据卷锁，探测占用端口的旧进程，执行可信写恢复、归档事务恢复和升级步骤；已有数据首次启动自动创建升级前快照，全新安装先迁移 `DATA.example.md` 再开始服务。
+- 运行中的服务持有卷级锁，恢复 CLI/升级快照 CLI 会拒绝并发操作；备份事务在启动期复用同一把锁，避免自锁。
+- 浏览器端按职责拆分：`board.js`（核心/数据/待处理）、`board-relationship.js`、`board-brainstorm.js`、`board-data.js`、`board-study.js`、`board-commands.js`、`board-entry.js`；样式拆为 base/workspace/entry/data/relationship/brainstorm 六个文件，`board.css` 保留为兼容聚合入口。
+- 新增发布 allowlist 完整性测试，运行时 `require` 的相对模块与 `board.html` 本地资源必须全部进入发布清单，避免便携包/EXE 漏文件。
 
 ### 修复
 

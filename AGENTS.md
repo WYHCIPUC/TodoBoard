@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-`server.js` is the HTTP entry point and should remain focused on routing and orchestration. Business logic lives in `lib/`: storage and Markdown updates are in `store.js`, entry operations in `entries.js`, classification in `classifier.js`, outbound URL validation in `safeurl.js`, and site-specific extraction in `lib/scraper/`. The framework-free browser client is split across `board.html`, `board.css`, and `board.js`. Tests sit beside modules as `lib/*.test.js`; scraper tests are under `lib/scraper/`. Design notes and release material belong in `docs/`, especially `docs/plans/`. Treat `DATA.md` as local user data; use `DATA.example.md` for shareable examples.
+`server.js` is the HTTP entry point and should remain focused on routing and orchestration. Business logic lives in `lib/`: storage and Markdown updates are in `store.js`, entry operations in `entries.js`, classification in `classifier.js`, outbound URL validation in `safeurl.js`, and site-specific extraction in `lib/scraper/`. The framework-free browser client is split across `board.html` plus the `board-*.js` / `board-*.css` modules; `board.css` is only a compatibility import entry. Tests sit beside modules as `lib/*.test.js`; scraper tests are under `lib/scraper/`. Design notes and release material belong in `docs/`, especially `docs/plans/`. Treat `DATA.md` as local user data; use `DATA.example.md` for shareable examples.
 
 Before product, architecture, or data-format changes, read `docs/PROJECT-PRINCIPLES.md` and state how the proposal handles user data, network failure, recovery, and verification.
 

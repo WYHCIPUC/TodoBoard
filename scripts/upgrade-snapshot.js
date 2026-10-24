@@ -17,8 +17,8 @@ const EXIT = Object.freeze({ OK: 0, USAGE: 2, NOT_FOUND: 3, LOCKED: 5, FAILED: 6
 class UsageError extends Error {}
 
 function parseArgs(argv) {
-  const options = { list: false, apply: false, interactive: false, restore: "", hash: "" };
-  const values = new Set(["--data", "--entries", "--brainstorms", "--trash", "--orphans", "--control-dir", "--restore", "--hash"]);
+  const options = { list: false, apply: false, interactive: false, restore: "", hash: "", remigrate: "" };
+  const values = new Set(["--data", "--entries", "--brainstorms", "--trash", "--orphans", "--control-dir", "--restore", "--hash", "--remigrate"]);
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index];
     if (values.has(arg)) {
@@ -27,7 +27,7 @@ function parseArgs(argv) {
       options[{
         "--data": "dataFile", "--entries": "entriesDir", "--brainstorms": "brainstormsDir",
         "--trash": "trashDir", "--orphans": "orphansDir", "--control-dir": "controlDir",
-        "--restore": "restore", "--hash": "hash",
+        "--restore": "restore", "--hash": "hash", "--remigrate": "remigrate",
       }[arg]] = value;
     } else if (arg === "--list") options.list = true;
     else if (arg === "--json") options.json = true;
@@ -38,7 +38,11 @@ function parseArgs(argv) {
     else throw new UsageError("未知参数: " + arg);
   }
   if (options.apply && !options.interactive) throw new UsageError("恢复必须同时使用 --apply 与 --interactive");
-  if (options.apply && (!options.restore || !options.hash)) throw new UsageError("恢复必须显式指定 --restore 与 --hash");
+  if (options.remigrate) {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(options.remigrate)) throw new UsageError("--remigrate 需要 recoveryPrepareId UUID");
+    if (options.restore) throw new UsageError("--restore 与 --remigrate 不能同时使用");
+    if (!options.apply) throw new UsageError("remigrate 必须显式使用 --apply");
+  } else if (options.apply && (!options.restore || !options.hash)) throw new UsageError("恢复必须显式指定 --restore 与 --hash");
   if (options.restore && !/^[0-9a-f]{64}$/.test(options.hash || "")) throw new UsageError("--hash 必须是 64 位小写 SHA-256");
   return options;
 }
@@ -47,8 +51,9 @@ function help() {
   return [
     "用法: node scripts/upgrade-snapshot.js [路径选项] --list",
     "      node scripts/upgrade-snapshot.js [路径选项] --restore <名称> --hash <SHA-256> --apply --interactive",
+    "      node scripts/upgrade-snapshot.js [路径选项] --remigrate <recoveryPrepareId> --apply --interactive",
     "",
-    "默认只读列出升级快照；恢复前请停止服务并复制整个数据目录。",
+    "默认只读列出升级快照；恢复/remigrate 前请停止服务并复制整个数据目录。",
     "路径选项: --data --entries --brainstorms --trash --orphans --control-dir",
   ].join("\n");
 }
@@ -74,6 +79,37 @@ async function run(argv, runtime = {}) {
 
   let paths;
   try { paths = upgrade.resolvePaths(options); } catch (error) { io.stderr.write(error.message + "\n"); return EXIT.USAGE; }
+
+  if (options.remigrate) {
+    const instance = inspectInstanceLock(paths.controlDir);
+    if (instance.locked) {
+      write({ ok: false, code: "data_in_use", modified: false, message: "检测到运行中的实例锁，请先关闭服务" }, options, io);
+      return EXIT.LOCKED;
+    }
+    const challenge = crypto.randomBytes(4).toString("hex");
+    io.stderr.write("将创建 remigrate 前快照并重新执行数据迁移。\n");
+    const answer = await (runtime.ask || ask)("输入本轮挑战码 " + challenge + " 以继续，其他输入取消: ", runtime.input, runtime.output);
+    if (answer !== challenge) {
+      write({ ok: false, code: "cancelled", modified: false }, options, io);
+      return EXIT.CANCELLED;
+    }
+    let migrationLock = null;
+    try {
+      const resources = [paths.dataFile, paths.entriesDir, paths.brainstormsDir, paths.trashDir, paths.orphansDir, paths.controlDir];
+      const acquire = runtime.acquireLocks || ((items, lockOptions) => acquireVolumeLocks(items, lockOptions));
+      migrationLock = acquire(resources, { controlDir: paths.controlDir, nativeBinding: runtime.nativeBinding });
+      const result = await (runtime.remigrate || upgrade.remigrateUpgrade)({
+        ...paths, recoveryPrepareId: options.remigrate, sourceState: "ready_for_2_1", lockFactory: () => ({ release() {} }),
+      });
+      write({ ok: true, dryRun: false, modified: true, result }, options, io);
+      return EXIT.OK;
+    } catch (error) {
+      write({ ok: false, code: error.code || "upgrade_remigrate_failed", message: error.message, modified: null }, options, io);
+      return EXIT.FAILED;
+    } finally {
+      if (migrationLock && typeof migrationLock.release === "function") migrationLock.release();
+    }
+  }
 
   if (!options.restore) {
     const snapshots = upgrade.listUpgradeSnapshots(paths);

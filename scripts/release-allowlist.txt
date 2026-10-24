@@ -4,9 +4,21 @@
 
 source .nvmrc
 source binding.gyp
+source board-base.css
+source board-brainstorm.css
+source board-data.css
+source board-entry.css
+source board-relationship.css
+source board-workspace.css
 source board.css
 source board.html
 source board.js
+source board-brainstorm.js
+source board-commands.js
+source board-data.js
+source board-entry.js
+source board-relationship.js
+source board-study.js
 source CHANGELOG.md
 source CONTRIBUTING.md
 source DATA.example.md
@@ -51,14 +63,17 @@ source lib/classifier.js
 source lib/constants.js
 source lib/dingtalk.js
 source lib/entries.js
+source lib/error-log.js
 source lib/fetcher.js
 source lib/health.js
 source lib/idempotency.js
+source lib/instance-lock.js
 source lib/lifecycle.js
 source lib/maintenance.js
 source lib/migrate.js
 source lib/ratelimit.js
 source lib/recovery.js
+source lib/remote-capture.js
 source lib/safeurl.js
 source lib/schema.js
 source lib/scraper/bilibili.js
@@ -77,6 +92,7 @@ source scripts/detect-windows-sdk.js
 source scripts/doctor.js
 source scripts/open-browser.js
 source scripts/recover.js
+source scripts/upgrade-snapshot.js
 source scripts/release-allowlist.txt
 source scripts/runtime-node.json
 
