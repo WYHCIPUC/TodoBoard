@@ -14,7 +14,7 @@ Before product, architecture, or data-format changes, read `docs/PROJECT-PRINCIP
 - `node lib/scraper/github.test.js` runs a nested scraper test directly; repeat for other scraper adapters.
 - `npm run check` checks `server.js` syntax and runs the standard test suite.
 
-Use Node.js 22 or newer (`.nvmrc` pins 22). Windows users may use `start.bat` for normal startup.
+Use Node.js 22 or newer (`.nvmrc` pins 24; CI covers Node.js 22 and 24). Windows users may use `start.bat` for normal startup.
 
 ## Coding Style & Naming Conventions
 

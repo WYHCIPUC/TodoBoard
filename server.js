@@ -63,6 +63,9 @@ const attention = require("./lib/attention");
 const lifecycle = require("./lib/lifecycle");
 const archiveIntegrity = require("./lib/archive-integrity");
 const upgrade = require("./lib/upgrade");
+const bootstrap = require("./lib/bootstrap");
+const instanceLock = require("./lib/instance-lock");
+const { createErrorLog } = require("./lib/error-log");
 const { RecoveryService, ConfirmationTokens } = require("./lib/recovery");
 const { UUID_RE, sha256 } = require("./lib/backup-format");
 const { IdempotencyStore, canonicalRequestHash } = require("./lib/idempotency");
@@ -84,6 +87,60 @@ const HTML_FILE = process.env.HTML_FILE
   ? path.resolve(process.env.HTML_FILE)
   : path.join(DIR, "board.html");
 
+/* 启动前只读检查：区分全新安装、已有数据和无法安全自动处理的状态。 */
+function startupInstallState() {
+  return bootstrap.inspectInstall(upgrade.resolvePaths({
+    dataFile: README,
+    entriesDir: entries.ENTRIES_DIR,
+    controlDir: store.CONTROL_DIR,
+  }));
+}
+
+/*
+ * 数据文件缺失但仍有研究档案或运行数据时，禁止用示例数据“初始化”：
+ * 那会把用户数据变成不可见的孤立档案，并让后续写入基于空看板。
+ * 版本过新或损坏时同样停在只读错误，先让用户保全证据。
+ */
+function assertSafeStartup() {
+  const install = startupInstallState();
+  if (install.state === "data_missing") {
+    console.error("\n  [错误] 未找到数据文件，但检测到已有研究档案或运行数据。");
+    console.error("  为避免用示例数据掩盖现有数据，服务未启动，也没有创建新的 DATA.md。");
+    console.error("  请先复制整个数据目录，从备份恢复 DATA.md；如确认是全新安装，请移走现有 entries/.linggan 后重试。");
+    process.exit(1);
+  }
+  if (install.state === "corrupt") {
+    console.error("\n  [错误] 数据文件存在但无法读取，服务未启动：" + install.error);
+    console.error("  请先备份整个数据目录并检查 DATA.md 的编码与权限。");
+    process.exit(1);
+  }
+  if (install.state === "downgrade_rejected") {
+    console.error("\n  [错误] 数据格式版本（v" + install.version + "）高于当前程序支持的版本。");
+    console.error("  请升级到更新的安装包后再启动，旧程序不会改写新数据。");
+    process.exit(1);
+  }
+}
+
+/* 同一数据目录只允许一个实例；正常退出在 exit 处理器中释放。 */
+let activeInstanceLock = null;
+function acquireStartupLock() {
+  try {
+    activeInstanceLock = instanceLock.acquireInstanceLock(store.CONTROL_DIR);
+  } catch (error) {
+    if (error.code === "data_in_use") {
+      const owner = error.details || {};
+      console.error("\n  [错误] 另一个灵感工作台实例正在使用同一数据目录（PID " + (owner.pid || "未知") + "）。");
+      console.error("  请先关闭旧实例；若旧进程已退出，等待 2 分钟后重试，服务会只读隔离陈旧锁。");
+    } else if (error.code === "instance_lock_invalid") {
+      console.error("\n  [错误] 实例锁内容无法验证，服务未启动。");
+      console.error("  请确认没有其他实例后，检查并移走 " + path.join(store.CONTROL_DIR, "instance.lock") + "。");
+    } else {
+      console.error("\n  [错误] 无法取得实例锁，服务未启动：" + error.message);
+    }
+    process.exit(1);
+  }
+}
+
 /* 首次运行：数据文件不存在时从 DATA.example.md 初始化 */
 function ensureDataFile() {
   if (fs.existsSync(README)) return;
@@ -96,17 +153,13 @@ function ensureDataFile() {
   } catch (e) { recordError("initData", e); }
 }
 
-/* 服务错误日志跟随用户数据目录，升级程序时不会丢失。 */
+/* 服务错误日志跟随用户数据目录，升级程序时不会丢失；超过 1 MiB 轮换上一份。 */
 const ERROR_LOG = process.env.SERVER_ERROR_LOG_FILE
   ? path.resolve(process.env.SERVER_ERROR_LOG_FILE)
   : path.join(path.dirname(README), ".linggan", "server-error.log");
+const errorLog = createErrorLog({ file: ERROR_LOG });
 function recordError(tag, e) {
-  const line = new Date().toISOString() + " [" + tag + "] " + (e && e.stack || e) + "\n";
-  try {
-    fs.mkdirSync(path.dirname(ERROR_LOG), { recursive: true });
-    fs.appendFileSync(ERROR_LOG, line, "utf-8");
-  } catch (_) {}
-  console.error("[" + tag + "]", e && e.stack || e);
+  errorLog.record(tag, e);
 }
 /* ============================================================
  * HTTP 服务
@@ -518,8 +571,8 @@ async function runIdempotent(api, requestId, action, values, work) {
   }
 }
 
-function archiveStatuses(api) {
-  const parsed = schema.validateData(store.readAll());
+function archiveStatuses(api, dataText) {
+  const parsed = schema.validateData(dataText === undefined ? store.readAll() : dataText);
   return parsed.entries.map(entry => {
     const task = capture.getArchiveStatus(entry.id) || {};
     const entryRoot = path.join(api.paths.entries, entry.uid || entry.id);
@@ -530,7 +583,10 @@ function archiveStatuses(api) {
       state: task.state || (integrity.state === "healthy" ? "succeeded" : "not_archived"),
       attempt: Number(task.attempt || 0),
       nextRunAt: task.nextRunAt || task.nextRetryAt || null,
-      lastError: task.lastError ? { code: String(task.lastError.code || "archive_failed") } : null,
+      // 批量接口只暴露稳定 code 与截断后的短消息；逐条接口仍返回队列原文。
+      lastError: task.lastError
+        ? { code: String(task.lastError.code || "archive_failed"), message: String(task.lastError).slice(0, 240) }
+        : null,
       active: { state: integrity.state === "healthy" ? "available" : null, snapshotId: integrity.snapshotId, quality: null },
       integrity: { state: integrity.state, reasonCodes: integrity.reasonCodes, checkedAt: integrity.checkedAt, snapshotId: integrity.snapshotId },
     };
@@ -692,9 +748,11 @@ function trustedApiHandler(api, req, res, url) {
   }
   if (key === "GET /api/attention") {
     respond(() => {
-      const statuses = archiveStatuses(api);
+      // 同一次请求复用同一份 DATA.md，避免归档状态与注意力聚合读到不同时点。
+      const dataText = store.readAll();
+      const statuses = archiveStatuses(api, dataText);
       const byUid = Object.fromEntries(statuses.map(item => [item.uid, { state: item.state, integrity: item.integrity }]));
-      const result = attention.aggregateAttention(store.readAll(), { entriesDir: api.paths.entries, archiveByUid: byUid });
+      const result = attention.aggregateAttention(dataText, { entriesDir: api.paths.entries, archiveByUid: byUid });
       sendJson(res, 200, { ok: true, ...result });
     });
     return true;
@@ -937,16 +995,17 @@ const server = http.createServer((req, res) => {
       const id = String(data.id || "").trim();
       if (!id) throw requestError("缺少归档任务 id", 400);
       const current = capture.getArchiveStatus(id);
-      if (!current) { sendJson(res, 404, { ok: false, error: "未知归档任务: " + id }); return; }
-      if (current.state === "queued" || current.state === "running") {
+      if (current && (current.state === "queued" || current.state === "running")) {
         sendJson(res, 409, { ok: false, error: "归档任务已在处理中", archive: current });
         return;
       }
       try {
-        const archive = capture.retryArchive(id);
-        sendJson(res, 202, { ok: true, archive });
+        // 旧版本升级上来的条目可能从未入队：此时“重试”即创建首个归档任务。
+        const archive = current ? capture.retryArchive(id) : capture.queueArchive(id, "手动重试");
+        sendJson(res, 202, { ok: true, archive, created: !current });
       } catch (error) {
-        sendJson(res, error.message.includes("正在执行") ? 409 : 400, { ok: false, error: "归档重试失败" });
+        const status = error.statusCode || (error.message && error.message.includes("正在执行") ? 409 : 400);
+        sendJson(res, status, { ok: false, error: current ? "归档重试失败" : "无法创建归档任务" });
       }
     });
     return;
@@ -1435,6 +1494,11 @@ process.on("unhandledRejection", reason => {
   shutdown("发生未处理的异步异常", 1);
 });
 
+assertSafeStartup();
+acquireStartupLock();
+process.on("exit", () => {
+  try { if (activeInstanceLock) activeInstanceLock.release(); } catch (_) {}
+});
 ensureDataFile();
 let migrationSummary;
 try {

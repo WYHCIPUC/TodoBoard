@@ -91,8 +91,9 @@ const ARCHIVE_STATUS_META = Object.freeze({
   succeeded: { label: "已归档", tone: "succeeded", description: "归档产物已完成" },
   failed: { label: "归档失败", tone: "failed", description: "可手动重试" },
   manual_required: { label: "需要手动补录", tone: "manual", description: "请提供 Markdown 或纯文本" },
+  not_archived: { label: "未归档", tone: "queued", description: "尚未建立本地归档，可开始归档" },
 });
-const ARCHIVE_RETRY_STATES = new Set(["partial", "failed", "manual_required"]);
+const ARCHIVE_RETRY_STATES = new Set(["partial", "failed", "manual_required", "not_archived"]);
 
 function normalizeArchiveStatus(raw) {
   const value = raw && typeof raw === "object" ? raw : {};
@@ -121,7 +122,9 @@ function archiveTimeLabel(value) {
 }
 
 function archiveErrorLabel(value) {
-  return String(value || "").replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 240);
+  // 批量接口返回 { code, message }，逐条接口返回字符串；两种都要可读。
+  const text = value && typeof value === "object" ? (value.message || value.code || value.error || "") : value;
+  return String(text || "").replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 240);
 }
 
 function archiveRetryRequest(id) {
@@ -142,6 +145,23 @@ function archiveResponseState(previous, response) {
   const current = normalizeArchiveStatus(previous);
   if (!response || response.ok === false) return { archive: current, recovered: true };
   return { archive: normalizeArchiveStatus(response.archive || { id: current.id, state: "queued" }), recovered: true };
+}
+
+/* 把批量归档状态合并回条目；服务端状态永远覆盖本地默认值，缺失条目保持原样。 */
+function applyArchiveStatuses(items, statuses) {
+  const byId = new Map();
+  for (const status of statuses || []) {
+    if (!status || status.id === undefined || status.id === null) continue;
+    byId.set(String(status.id), status);
+  }
+  let applied = 0;
+  for (const item of items) {
+    const status = byId.get(String(item.id));
+    if (!status) continue;
+    item.archive = normalizeArchiveStatus(status);
+    applied++;
+  }
+  return applied;
 }
 
 /* 8 分类专属 SVG 图标（极简线条，统一 14×14 描边色 currentColor） */
@@ -343,8 +363,9 @@ function archiveStatusHtml(item, compact) {
 }
 function archiveControlsHtml(item) {
   const archive = archiveStatus(item);
+  const retryLabel = archive.state === "not_archived" ? "开始归档" : "重试归档";
   const retry = archiveCanRetry(archive.state)
-    ? `<button type="button" class="archive-action archive-retry" data-archive-action="retry" data-id="${escapeAttr(item.id)}">重试归档</button>` : "";
+    ? `<button type="button" class="archive-action archive-retry" data-archive-action="retry" data-id="${escapeAttr(item.id)}">${retryLabel}</button>` : "";
   const manual = archive.state === "manual_required"
     ? `<button type="button" class="archive-action" data-archive-action="manual" data-id="${escapeAttr(item.id)}">补录内容</button>` : "";
   return retry + manual;
@@ -1003,20 +1024,53 @@ async function httpLoad() {
 }
 
 let archiveLoadSequence = 0;
+const ARCHIVE_STATUS_FALLBACK_CONCURRENCY = 4;
+
 async function loadArchiveStatuses(items) {
   if (!state.httpMode || !items.length) return;
   const sequence = ++archiveLoadSequence;
-  await Promise.all(items.map(async item => {
-    try {
-      const response = await localApiFetch("/api/archive/status?id=" + encodeURIComponent(item.id), { cache: "no-store" });
+  let statuses = null;
+  let legacyFallback = false;
+  try {
+    // 一次批量读取；条目数量不再放大成本，也不会撞上默认 300 次/分钟的接口限流。
+    const response = await localApiFetch("/api/archive/statuses", { cache: "no-store" });
+    if (response.ok) {
       const data = await readJsonResponse(response);
-      if (data.archive || data.status) item.archive = normalizeArchiveStatus(data.archive || data.status);
-    } catch (_) {
-      // 保留服务端不可达前的状态；首次加载则使用持久化契约的 queued 默认值。
-      item.archive = normalizeArchiveStatus(item.archive);
+      if (!Array.isArray(data.statuses)) return;
+      statuses = data.statuses;
+    } else if ([404, 405].includes(response.status)) {
+      legacyFallback = true;
+    } else {
+      // 网络、限流或服务异常：保留上一次已知状态，不回退成逐条请求风暴。
+      return;
     }
-  }));
+  } catch (_) {
+    return;
+  }
+  if (sequence !== archiveLoadSequence) return;
+  if (statuses) applyArchiveStatuses(items, statuses);
+  else if (legacyFallback) await loadArchiveStatusesOneByOne(items, sequence);
   if (sequence === archiveLoadSequence) render();
+}
+
+/* 仅用于旧服务端没有批量接口时的兼容回退；并发受限，避免重复触发限流。 */
+async function loadArchiveStatusesOneByOne(items, sequence) {
+  const pending = items.slice();
+  const worker = async () => {
+    while (pending.length) {
+      if (sequence !== archiveLoadSequence) return;
+      const item = pending.shift();
+      try {
+        const response = await localApiFetch("/api/archive/status?id=" + encodeURIComponent(item.id), { cache: "no-store" });
+        if (!response.ok) continue;
+        const data = await readJsonResponse(response);
+        if (data.archive || data.status) item.archive = normalizeArchiveStatus(data.archive || data.status);
+      } catch (_) {
+        // 保留服务端不可达前的状态。
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(ARCHIVE_STATUS_FALLBACK_CONCURRENCY, pending.length) }, worker));
 }
 
 async function demoLoad() {
@@ -1103,7 +1157,7 @@ async function retryArchive(id, button) {
     if (item) item.archive = archiveResponseState(item.archive, data).archive;
     render();
     if (currentEntryId === String(id)) renderEntryArchive(item ? item.archive : data.archive);
-    toast("归档已重新排队", "ok");
+    toast(data.created ? "归档任务已创建" : "归档已重新排队", "ok");
     return true;
   } catch (error) {
     toast("归档重试失败：" + error.message, "err");

@@ -24,8 +24,9 @@ npm start
 
 主数据是 `DATA.md`；研究笔记、正文和截图位于 `entries/` 或配置的 `ENTRIES_DIR`；事务、恢复、迁移和升级证据位于数据根下 `.linggan/`。其中常用目录包括：
 
-- `.linggan/migration-backups/`：旧格式迁移前副本；
-- `.linggan/upgrade-snapshots/`：v2.2 升级前完整快照；
+- `.linggan/migration-backups/`：旧格式迁移前副本（启动时自动创建）；
+- `.linggan/upgrade-snapshots/`：仅在既有升级/恢复事务创建时存在；当前启动流程不会自动生成完整升级快照；
+- `.linggan/instance.lock/`：运行中实例锁，正常退出自动释放；异常退出后等待心跳过期再自动隔离；
 - `.linggan/recovery-imports/`：恢复事务状态和收据；
 - `.linggan/idempotency/`：幂等请求状态。
 
@@ -33,12 +34,12 @@ npm start
 
 ## 从 v2.1 / v2.2 升级
 
-1. 停止旧服务并复制整个数据目录；不要让两个版本同时写入。
+1. 停止旧服务并复制整个数据目录；不要让两个版本同时写入。启动会为同一数据目录取得实例锁，第二个实例会被拒绝；旧进程异常退出后，等待约 2 分钟让心跳过期，再重试即可只读隔离陈旧锁。
 2. 在旧版本中导出完整备份，记录条目、笔记、正文和截图数量。
-3. 将 v2.3 成品放到新目录后启动；启动器先预检、加锁并在需要时创建升级快照，再开放数据 API。
-4. 核对数据与 `.linggan/upgrade-snapshots/pre-2.2.0-*` 中的 `manifest.json`。升级中断会在下次启动收敛；证据歧义或验证失败时停止并显示恢复指引。
+3. 将 v2.3 成品放到新目录后启动。启动前会做只读检查：`DATA.md` 缺失但仍有研究档案、文件损坏或数据版本高于当前程序时会拒绝启动；旧数据格式迁移会自动备份到 `.linggan/migration-backups/`，失败不会覆盖源数据。
+4. 核对条目、笔记、正文和截图数量。启动流程不会自动创建 `.linggan/upgrade-snapshots/`；需要可回滚快照时，升级前按第 1 步保留整个数据目录副本。
 
-不要把旧目录直接覆盖为新目录，也不要手工删除事务、锁或快照来“继续启动”。
+不要把旧目录直接覆盖为新目录，也不要手工删除事务、锁或迁移备份来“继续启动”。
 
 ## 恢复与回滚
 
@@ -51,7 +52,7 @@ node scripts/recover.js --json
 
 若输出 `ambiguous_recovery`、`data_in_use`、`legacy_instance_may_be_running` 或 `manual_recovery_required`，不要猜测候选或删除锁。保存诊断输出，确认旧进程已停止，再按 `--help` 显式提供事务、候选、`--apply` 与交互确认。每次变更前会生成已验证副本，完成后复验并写入收据；同一操作 ID 重跑不会重复生效。
 
-升级回滚只使用已验证、标记为 restorable 的 `pre-2.2.0-*` 快照。先保留当前失败状态的完整副本，再在 UI/CLI 中预览、核对 manifest SHA-256 并确认。不要用 Git、旧安装包或仓库 `DATA.md` 替换个人数据。
+升级回滚只使用已验证、标记为 restorable 且带 `manifest.json` 的快照；当前启动流程不会自动生成这类快照，请以升级前复制的数据目录或显式升级工具产物为准。先保留当前失败状态的完整副本，再预览、核对 manifest SHA-256 并确认。不要用 Git、旧安装包或仓库 `DATA.md` 替换个人数据。
 
 ## 校验下载
 

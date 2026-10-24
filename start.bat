@@ -9,7 +9,7 @@ where node >nul 2>nul
 if errorlevel 1 (
   echo.
   echo [STARTUP FAILED] Node.js was not found.
-  echo Install Node.js 20 or newer, then run start.bat again.
+  echo Install Node.js 22 or newer, then run start.bat again.
   echo https://nodejs.org/
   echo.
   pause
@@ -33,7 +33,7 @@ if "%SERVER_CODE%"=="0" exit /b 0
 
 echo.
 echo [SERVICE STOPPED] Exit code: %SERVER_CODE%
-echo Error log: %~dp0docs\server-error.log
+echo Error log: %~dp0.linggan\server-error.log
 pause
 exit /b %SERVER_CODE%
 
@@ -51,7 +51,7 @@ exit /b 0
 where npm >nul 2>nul
 if errorlevel 1 (
   echo [STARTUP FAILED] Dependencies are missing and npm was not found.
-  echo Reinstall Node.js 20 or newer, then try again.
+  echo Reinstall Node.js 22 or newer, then try again.
   pause
   exit /b 1
 )
@@ -68,6 +68,6 @@ goto doctor
 :startup_failed
 echo [STARTUP FAILED] Review the diagnostics above.
 echo To use another port: set PORT=3866 ^&^& start.bat
-echo Error log: %~dp0docs\server-error.log
+echo Error log: %~dp0.linggan\server-error.log
 pause
 exit /b 1

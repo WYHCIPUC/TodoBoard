@@ -1,5 +1,6 @@
 # 依赖与构建
 node_modules/
+/build/
 
 # 用户数据（发布到 GitHub 前必须排除，避免隐私泄露）
 DATA.md

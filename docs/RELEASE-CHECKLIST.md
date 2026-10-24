@@ -25,7 +25,7 @@ npm test -- --test scripts/build-release.test.js --test scripts/build-portable.t
 - [ ] Windows 10/11 x64 全新用户分别验证单文件 EXE 与便携 ZIP，无需系统 Node.js。
 - [ ] 中文/空格路径、普通用户权限、端口占用、活动锁、旧实例仍可能运行、无 Edge 回退均给出可操作诊断。
 - [ ] v2.1 / v2.2 数据副本升级到 v2.3；核对 `DATA.md`、条目 UID、笔记、正文、截图和归档证据。
-- [ ] 核对 `.linggan/migration-backups/` 与 `.linggan/upgrade-snapshots/`；回滚只对显式副本/快照执行，绝不以仓库 `DATA.md` 作夹具。
+- [ ] 核对 `.linggan/migration-backups/` 与 `.linggan/upgrade-snapshots/`（当前启动不会自动创建升级快照，若存在则必须验证 manifest）；回滚只对显式副本/快照执行，绝不以仓库 `DATA.md` 作夹具。
 - [ ] 断网时本地浏览、搜索、备份、恢复预检仍可用；抓取失败保留已保存 URL 和现有内容。
 
 ## 3. 远端门禁（本地准备阶段保持 Pending）

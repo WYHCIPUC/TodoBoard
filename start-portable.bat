@@ -29,7 +29,7 @@ if "%SERVER_CODE%"=="0" exit /b 0
 
 echo.
 echo [SERVICE STOPPED] Exit code: %SERVER_CODE%
-echo Error log: %~dp0docs\server-error.log
+echo Error log: %~dp0.linggan\server-error.log
 pause
 exit /b %SERVER_CODE%
 
@@ -46,6 +46,6 @@ exit /b 0
 :startup_failed
 echo [STARTUP FAILED] The portable package may be incomplete.
 echo Extract the entire ZIP to a writable folder and try again.
-echo Error log: %~dp0docs\server-error.log
+echo Error log: %~dp0.linggan\server-error.log
 pause
 exit /b 1
