@@ -27,9 +27,9 @@
 | --- | --- |
 | Windows 10 干净账户人工验证 | 当前只有 Windows 11 环境，未执行 Windows 10 实机/VM 验证；2026-10-25 维护者明确同意在缺少该验证的情况下发布 v2.3.1 |
 | Windows 11 人工验证 | 已由 EXE smoke、fresh extraction 与浏览器 E2E 覆盖关键路径；仍需按发布清单做一次人工桌面窗口/卸载检查 |
-| 远端 tag / Release | 已创建 **draft** Release `v2.3.1` 并上传全部资产（`isDraft=true`）；`v2.3.1` tag 尚未推送，正式发布仍待 Windows 10/11 人工门禁 |
+| 远端 tag / Release | **已发布**：`v2.3.1` tag 指向 `e570ea9`，Release 已上传全部资产：https://github.com/WYHCIPUC/TodoBoard/releases/tag/v2.3.1 |
 | 代码签名 | 已评估，当前阶段暂不购买；发布说明需继续标注未签名并给出 SHA-256 校验 |
 
 ## 结论
 
-本地可自动化的发布门禁已全部通过；版本已定为 `2.3.1` 并完成两次确定性重建。维护者已明确同意在缺少 Windows 10 人工验证的情况下发布；Windows 11 人工桌面/卸载检查未单独执行，已由 EXE smoke、fresh extraction 与浏览器 E2E 覆盖。剩余动作仅为推送 `v2.3.1` tag 并发布现有 draft Release。
+本地可自动化的发布门禁已全部通过；版本 `2.3.1` 已完成两次确定性重建，`v2.3.1` tag 与 GitHub Release 已发布。维护者明确同意在缺少 Windows 10 人工验证的情况下发布；Windows 11 人工桌面/卸载检查未单独执行，已由 EXE smoke、fresh extraction 与浏览器 E2E 覆盖。发布页：https://github.com/WYHCIPUC/TodoBoard/releases/tag/v2.3.1。
