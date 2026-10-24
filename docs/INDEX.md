@@ -21,6 +21,7 @@
 - [v2.2.0 可信恢复与回顾升级计划](plans/2026-08-14-v2.2-trusted-recovery-review-plan.md)：v2.2 的范围、合同、实施依赖、回滚和发布门禁。
 - [读取路径性能与上限透明化](plans/2026-10-24-read-path-performance.md)：批量归档状态、搜索缓存、分析上限提示的证据、边界与验证结果。
 - [风险排查与升级安全加固](plans/2026-10-24-risk-audit-and-upgrade.md)：依赖、代码、配置与升级路径的风险清单、修复和验证证据。
+- [1000 条规模验收](plans/2026-10-24-1000-scale-acceptance.md)：隔离数据下的批量状态、搜索、待处理与头脑风暴响应时间。
 - [公开 Beta PRD](product-upgrade-prd.md)：2.0 阶段的历史定位、目标与验收依据。
 - [头脑风暴知识图谱设计](plans/2026-08-06-brainstorm-knowledge-graph.md)：本地关联、证据与验证路径。
 

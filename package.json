@@ -17,6 +17,7 @@
     "test:e2e": "node e2e/browser-smoke.js",
     "test:launcher": "node scripts/run-tests.js --test scripts/build-executable.test.js",
     "test:integration": "node scripts/run-scraper-tests.js",
+    "benchmark:scale": "node scripts/benchmark-scale.js",
     "coverage": "c8 --include=scripts/run-tests.js --include=lib/backup.js --include=lib/backup-format.js --include=lib/backup-transaction.js --include=lib/maintenance.js --include=lib/archive-content.js --include=lib/archive-quality.js --include=lib/archive-integrity.js --include=lib/attention.js --include=lib/schema.js --include=lib/store.js --include=lib/archive.js --include=lib/archive-queue.js --include=lib/capture.js --include=lib/search.js --include=lib/brainstorm.js node scripts/run-tests.js",
     "check": "node --check server.js && node --check board.js && node scripts/run-tests.js"
   },
