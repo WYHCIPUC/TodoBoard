@@ -102,15 +102,24 @@
 - **影响**：不再暗示存在可运行但缺少依赖的 JS 测试入口，也不新增 `@playwright/test`。
 - **验证**：全仓库检索无引用；`npm run test:e2e` 仍通过。
 
+### 10. 启动升级编排与卷级锁（C1/C3）
+
+- **改动**：`server.js` 启动改为调用 `bootstrap.bootstrap`：端口旧进程探测、可信写恢复、归档事务恢复、全数据目标卷锁、已有数据首次启动自动创建升级前快照、marker 幂等检查、`runUpgrade` 数据步骤，以及 `capture` 归档队列的停止/提升。
+- **fresh 安装修复**：`DATA.example.md` 保留无版本头示例；bootstrap 先经正式 `migrateData` 再校验，避免 fresh 启动被 schema 拒绝。
+- **锁协同**：运行中的服务持有卷级锁；`recover.js`、`upgrade-snapshot.js` 使用同一资源锁，恢复 CLI 会拒绝并发；备份事务通过 no-op lockFactory 复用启动期锁，避免自锁。
+- **验证**：新增 `lib/startup-bootstrap.test.js` 覆盖已有数据首次快照、二次启动不重复快照、fresh 初始化、运行中卷锁拒绝；`e2e/trusted-recovery-playwright.py` 恢复后重启通过。
+
 ## 验证结果
 
 | 检查 | 结果 |
 |---|---|
 | `npm audit`（干净 `npm ci` 后） | 0 漏洞；axios 1.20.0、follow-redirects 1.16.1、undici 7.30.1/6.29.1、brace-expansion 2.1.7/5.0.12 |
-| `npm test`（Node 22.23.1） | 54 个测试文件全部通过 |
-| `npm test`（固定 Node 24.16.0） | 54 个测试文件全部通过 |
+| `npm test`（Node 22.23.1） | 58 个测试文件全部通过 |
+| `npm test`（固定 Node 24.16.0） | 58 个测试文件全部通过 |
 | `npm run coverage` | Statements 98.35%、Branches 92.23%、Functions 100%、Lines 98.35%，逐文件 90% 门禁通过 |
 | `npm run test:e2e` | Chrome CDP 桌面/390px/离线/键盘主流程通过 |
+| `npm run test:e2e:data` | 收藏、研究笔记、截图上传/删除、回收站恢复、备份导出/恢复通过 |
+| 启动升级/锁 | 已有数据首次快照与 marker、二次启动幂等、fresh 初始化、运行中卷锁拒绝通过 |
 | `npm run test:scrapers:fixtures` | GitHub、Bilibili、Readability、X 4 个夹具文件通过（Bilibili 可选网络信息告警不影响夹具断言） |
 | `npm run build:demo` | 在线 Demo 构建成功 |
 | 固定运行时 | `node-v24.16.0-win-x64.zip` SHA-256 与 `scripts/runtime-node.json` 一致，Node 24 `npm run check` 通过 |
@@ -130,5 +139,6 @@
 
 ## 后续建议（未纳入本次）
 
-1. 以独立变更接入完整升级编排：容量预检、自动升级快照、旧进程审计与锁冲突只读服务；需 Windows 成品演练。
-2. 评估 `c8`/`node-gyp` 主版本升级；在下次正式发版时同步更新 `release-candidate.yml` 默认版本与发布清单标题。
+1. 升级前容量预检与锁冲突只读服务仍待接入；当前锁冲突按 fail closed 退出并给出证据。
+2. 完成 Windows 10 干净账户人工验证、两次确定性构建、EXE smoke、fresh extraction/SHA 校验与远端 Release 门禁。
+3. 评估 `c8`/`node-gyp` 主版本升级；在下次正式发版时同步更新 `release-candidate.yml` 默认版本与发布清单标题。
