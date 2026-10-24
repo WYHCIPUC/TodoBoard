@@ -27,7 +27,7 @@
 | --- | --- |
 | Windows 10 干净账户人工验证 | 当前只有 Windows 11 环境，未执行 Windows 10 实机/VM 验证 |
 | Windows 11 人工验证 | 已由 EXE smoke、fresh extraction 与浏览器 E2E 覆盖关键路径；仍需按发布清单做一次人工桌面窗口/卸载检查 |
-| 远端 tag / Release | 已确定目标版本 `2.3.1` 并完成重建；仍需打 `v2.3.1` tag、推送并创建 GitHub Release |
+| 远端 tag / Release | 已创建 **draft** Release `v2.3.1` 并上传全部资产（`isDraft=true`）；`v2.3.1` tag 尚未推送，正式发布仍待 Windows 10/11 人工门禁 |
 | 代码签名 | 已评估，当前阶段暂不购买；发布说明需继续标注未签名并给出 SHA-256 校验 |
 
 ## 结论
