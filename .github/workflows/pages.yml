@@ -7,6 +7,8 @@ on:
       - "board.html"
       - "board.css"
       - "board.js"
+      - "board-*.css"
+      - "board-*.js"
       - "DATA.example.md"
       - "lib/brainstorm.js"
       - "scripts/build-demo.js"

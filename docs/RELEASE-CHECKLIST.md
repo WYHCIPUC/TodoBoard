@@ -1,4 +1,4 @@
-# v2.3.1 发布检查清单
+# v2.4.0 发布检查清单
 
 本清单 fail-closed。任何本地门禁失败、证据变化或远端规则不明都停止发布；不得 force-push、绕过保护或使用旧产物替代。`DATA.md`、备份、凭据、旧包、视频和无关未跟踪文件始终不在发布范围。
 
@@ -24,7 +24,7 @@ npm test -- --test scripts/build-release.test.js --test scripts/build-portable.t
 
 - [ ] Windows 10/11 x64 全新用户分别验证单文件 EXE 与便携 ZIP，无需系统 Node.js。
 - [ ] 中文/空格路径、普通用户权限、端口占用、活动锁、旧实例仍可能运行、无 Edge 回退均给出可操作诊断。
-- [ ] v2.1 / v2.2 数据副本升级到 v2.3；核对 `DATA.md`、条目 UID、笔记、正文、截图和归档证据。
+- [ ] v2.1 / v2.2 数据副本升级到 v2.4；核对 `DATA.md`、条目 UID、笔记、正文、截图和归档证据。
 - [ ] 核对 `.linggan/migration-backups/` 与 `.linggan/upgrade-snapshots/`（当前启动不会自动创建升级快照，若存在则必须验证 manifest）；回滚只对显式副本/快照执行，绝不以仓库 `DATA.md` 作夹具。
 - [ ] 断网时本地浏览、搜索、备份、恢复预检仍可用；抓取失败保留已保存 URL 和现有内容。
 

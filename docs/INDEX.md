@@ -34,6 +34,7 @@
 - [Beta 用户测试](BETA-USER-TEST.md)：首次使用任务与观察指标。
 - [v2.2.0 发布说明](releases/v2.2.0.md)：兼容性、升级、恢复、回滚、验证证据和远端 Pending。
 - [v2.2 介绍视频](video/linggan-promo-design.md)：成片叙事、镜头映射、数据边界、节拍与交付规格。
+- [v2.4.0 发布说明](releases/v2.4.0.md)：纸间设计体系、真实交互、可访问性与 Windows 资产。
 - [v2.3.1 发布说明](releases/v2.3.1.md)：升级快照、只读保护、验证闭环与维护版资产。
 - [v2.3.0 发布说明](releases/v2.3.0.md)：三阶段工作流、交互稳定性、解析降级与 Windows 资产。
 - [v2.3 更新视频](video/linggan-v2.3-update-design.md)：新版增量叙事、真实界面素材和双版本交付。
