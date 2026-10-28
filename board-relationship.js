@@ -329,7 +329,11 @@ function fitRelationshipView(options = {}) {
   if (options.instant) viewport.classList.add("is-instant-fit");
   const mobileViewport = viewport.clientWidth < 700;
   const minimumZoom = mobileViewport ? 0.42 : 0.62;
-  const zoom = Math.min(1, Math.max(minimumZoom, Math.min((viewport.clientWidth - 34) / RELATIONSHIP_CANVAS.width, (viewport.clientHeight - 34) / RELATIONSHIP_CANVAS.height)));
+  const contentBottom = Math.max(360, ...relationshipFilteredGraph().nodes.map(node => {
+    const point = relationshipState.positions.get(node.id);
+    return point ? point.y + RELATIONSHIP_CANVAS.nodeHeight : 0;
+  })) + 80;
+  const zoom = Math.min(1, Math.max(minimumZoom, Math.min((viewport.clientWidth - 34) / RELATIONSHIP_CANVAS.width, (viewport.clientHeight - 34) / contentBottom)));
   relationshipState.zoom = zoom;
   const selectedPoint = relationshipState.positions.get(relationshipState.selectedId);
   relationshipState.panX = selectedPoint

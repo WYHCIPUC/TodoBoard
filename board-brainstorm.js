@@ -17,8 +17,11 @@ function setProductView(view, options) {
     const selected = button.dataset.productView === productView;
     button.classList.toggle("active", selected);
     button.setAttribute("aria-pressed", String(selected));
+    if (selected) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
   });
   setRelationshipSidebar(false, { focus: false });
+  if (productView === "inspiration") requestAnimationFrame(syncSlider);
   try { localStorage.setItem("product_view", productView); } catch (_) {}
   if (brainstormActive && options.load !== false) {
     loadBrainstorm();

@@ -156,6 +156,24 @@ async function waitFor(cdp, expression, message, timeoutMs = 10_000) {
   throw new Error(message);
 }
 
+async function clickElement(cdp, selector) {
+  const point = await cdp.evaluate(`(() => {
+    const element = document.querySelector(${JSON.stringify(selector)});
+    if (!element) return null;
+    element.scrollIntoView({ block: "center", behavior: "instant" });
+    const rect = element.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  })()`);
+  assert.ok(point, "找不到真实点击目标: " + selector);
+  await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x: point.x, y: point.y, button: "left", buttons: 1, clickCount: 1 });
+  await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: point.x, y: point.y, button: "left", buttons: 0, clickCount: 1 });
+}
+
+async function keyTap(cdp, key, code, virtualKey, modifiers = 0) {
+  await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", key, code, windowsVirtualKeyCode: virtualKey, nativeVirtualKeyCode: virtualKey, modifiers });
+  await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key, code, windowsVirtualKeyCode: virtualKey, nativeVirtualKeyCode: virtualKey, modifiers });
+}
+
 async function relationshipSnapshot(cdp) {
   return cdp.evaluate(`(() => {
     const rectOf = element => {
@@ -354,9 +372,57 @@ async function runBrowserSmoke() {
     await cdp.send("CSS.forcePseudoState", { nodeId: pressNode.nodeId, forcedPseudoClasses: [] });
     await cdp.evaluate('document.querySelector("#e2ePressButton").remove(); true');
 
+    await cdp.evaluate('document.querySelector("#searchInput").focus(); true');
+    await cdp.send("Input.insertText", { text: "GitHub" });
+    await waitFor(cdp, 'document.querySelector("#searchInput").value === "GitHub" && state.query === "GitHub"', "真实输入未同步到搜索状态: " + await cdp.evaluate('JSON.stringify({ active: document.activeElement && document.activeElement.id, value: document.querySelector("#searchInput").value, query: state.query, inert: document.querySelector("#searchInput").inert || document.querySelector("#searchInput").closest("[inert]")?.className })'));
+    await waitFor(cdp, 'document.querySelectorAll("#listView .row").length === 1 && document.querySelector("#collectionCount").textContent.includes("1 / 3")', "搜索结果计数未更新: " + await cdp.evaluate('JSON.stringify({ rows: document.querySelectorAll("#listView .row").length, count: document.querySelector("#collectionCount").textContent, query: state.query, deep: state.deepMatchIds && [...state.deepMatchIds] })'));
+    await clickElement(cdp, "#searchClearBtn");
+    await waitFor(cdp, 'document.querySelectorAll("#listView .row").length === 3', "清除搜索后未恢复全部条目");
+    await clickElement(cdp, '[data-view="board"]');
+    await waitFor(cdp, 'state.view === "board" && !document.querySelector("#boardView").hidden && document.querySelectorAll("#boardView .card").length === 3', "真实鼠标点击未能切换看板");
+    assert.strictEqual(await cdp.evaluate('document.querySelector("[data-view=board]").getAttribute("aria-pressed")'), "true", "看板选中状态未同步");
+    await clickElement(cdp, '[data-view="list"]');
+    await waitFor(cdp, 'state.view === "list" && !document.querySelector("#listView").hidden', "真实鼠标点击未能返回列表");
+    await clickElement(cdp, '[data-d="compact"]');
+    assert.strictEqual(await cdp.evaluate('document.body.classList.contains("density-compact") && document.querySelector("[data-d=compact]").getAttribute("aria-pressed") === "true"'), true, "紧凑密度状态未同步");
+    await clickElement(cdp, '[data-d="cozy"]');
+    const desktopOverflow = await cdp.evaluate('({ width: innerWidth, scroll: document.documentElement.scrollWidth, main: document.querySelector(".main").getBoundingClientRect().right })');
+    assert.ok(desktopOverflow.scroll <= desktopOverflow.width && desktopOverflow.main <= desktopOverflow.width, "桌面布局存在横向溢出: " + JSON.stringify(desktopOverflow));
+
+    await cdp.evaluate('document.querySelector("#themeBtn").focus(); true');
+    await keyTap(cdp, "ArrowDown", "ArrowDown", 40);
+    await waitFor(cdp, 'document.querySelector("#themePanel").classList.contains("open") && document.activeElement.classList.contains("tp-item")', "主题菜单未响应键盘打开");
+    await keyTap(cdp, "ArrowDown", "ArrowDown", 40);
+    await waitFor(cdp, 'document.activeElement.dataset.t === "dark"', "主题菜单方向键未移动焦点");
+    await keyTap(cdp, "Enter", "Enter", 13);
+    await waitFor(cdp, 'document.documentElement.dataset.theme === "dark" && document.querySelector("[data-t=dark]").getAttribute("aria-checked") === "true"', "键盘选择主题未生效");
+    const themeStates = await cdp.evaluate(`(async () => {
+      const states = [];
+      for (const name of ["light", "dark", "aurora", "forest"]) {
+        applyTheme(name);
+        await new Promise(resolve => setTimeout(resolve, 280));
+        states.push({ name, background: getComputedStyle(document.body).backgroundColor, checked: document.querySelectorAll("#themePanel [aria-checked=true]").length, label: document.querySelector("#themeBtn").title });
+      }
+      applyTheme("light");
+      return states;
+    })()`);
+    for (const theme of themeStates) {
+      assert.ok(theme.background && theme.checked === 1 && theme.label.length > 0, "主题视觉或选中状态不完整: " + JSON.stringify(theme));
+    }
+    assert.strictEqual(new Set(themeStates.map(theme => theme.background)).size, 4, "四种主题必须有独立背景色");
+    await cdp.evaluate('document.querySelector("#moreBtn").focus(); true');
+    await keyTap(cdp, "ArrowDown", "ArrowDown", 40);
+    await waitFor(cdp, 'document.querySelector("#morePanel").classList.contains("open")', "更多菜单未响应键盘打开");
+    await keyTap(cdp, "End", "End", 35);
+    await waitFor(cdp, 'document.activeElement.dataset.target === "helpBtn"', "更多菜单 End 键未移动到末项");
+    await keyTap(cdp, "Escape", "Escape", 27);
+    assert.strictEqual(await cdp.evaluate('!document.querySelector("#morePanel").classList.contains("open") && document.activeElement === document.querySelector("#moreBtn")'), true, "菜单关闭后未恢复触发点焦点");
+
     const tempBeforeRelationship = hash(dataFile);
-    await cdp.evaluate('document.querySelector("#relationshipNav").click(); true');
+    await clickElement(cdp, "#relationshipNav");
     await waitFor(cdp, 'document.querySelector("#relationshipAnalysisState").textContent === "本地分析已更新" && document.querySelectorAll("#relationshipNodes .relationship-node").length === 3', "关系画布未完成本地分析");
+    const fitZoom = await cdp.evaluate('({ actual: relationshipState.zoom, widthOnly: Math.min(1, (document.querySelector("#relationshipViewport").clientWidth - 34) / 1160) })');
+    assert.ok(fitZoom.actual >= fitZoom.widthOnly - 0.01, "少量真实节点不应因画布空白高度而被额外缩小: " + JSON.stringify(fitZoom));
     let relationship = await relationshipSnapshot(cdp);
     assert.strictEqual(relationship.nodeCount, 3, "关系画布必须呈现全部隔离条目");
     assert.ok(relationship.edgeCount >= 2, "共享标签应生成可追溯关系: " + JSON.stringify(relationship));
@@ -420,7 +486,7 @@ async function runBrowserSmoke() {
     await cdp.evaluate('document.querySelector("[data-relationship-action=verify]").click(); true');
     await waitFor(cdp, '!document.querySelector("#brainstormView").hidden', "关系节点未带入头脑风暴");
     assert.match(await cdp.evaluate('document.querySelector("#brainstormGoal").value'), /关系测试 GitHub/, "验证方案未包含所选节点");
-    await cdp.evaluate('document.querySelector("#relationshipNav").click(); true');
+    await clickElement(cdp, "#relationshipNav");
     await waitFor(cdp, 'document.querySelector("#relationshipAnalysisState").textContent === "本地分析已更新" && !document.querySelector("#relationshipView").hidden', "从头脑风暴返回关系画布失败");
     await cdp.evaluate('document.querySelector("[data-relationship-action=study]").click(); true');
     await waitFor(cdp, '!document.querySelector("#entryView").hidden && document.querySelector("#entryTitle").textContent === "关系测试 GitHub"', "关系节点未打开研究档案");
@@ -449,6 +515,16 @@ async function runBrowserSmoke() {
     assert.strictEqual(hash(dataFile), tempBeforeRelationship, "只读关系流程不得改写隔离 DATA.md");
     await cdp.evaluate('document.querySelector("#inspirationNav").click(); true');
     await waitFor(cdp, 'document.querySelector("#addBtn").getBoundingClientRect().height >= 40', "390px 下顶栏收藏入口不可见或过小");
+    await waitFor(cdp, 'document.querySelector("#vsSlider").getBoundingClientRect().width > 0', "返回灵感库后视图滑块未恢复");
+    const mobileLayout = await cdp.evaluate(`(() => {
+      const actions = ["#addBtn", "#themeBtn", "#moreBtn"].map(selector => {
+        const rect = document.querySelector(selector).getBoundingClientRect();
+        return { selector, width: rect.width, right: rect.right };
+      });
+      return { width: innerWidth, scroll: document.documentElement.scrollWidth, actions };
+    })()`);
+    assert.ok(mobileLayout.scroll <= mobileLayout.width, "390px 下页面存在横向溢出: " + JSON.stringify(mobileLayout));
+    for (const action of mobileLayout.actions) assert.ok(action.width > 0 && action.right <= mobileLayout.width, "390px 下顶栏工具被裁切: " + JSON.stringify(action));
     await cdp.evaluate('document.querySelector("#addBtn").click(); true');
     await waitFor(cdp, 'document.querySelector("#modal").classList.contains("open") && document.activeElement === document.querySelector("#fetchUrl")', "移动收藏入口未打开真实收藏流程");
     await cdp.evaluate('document.querySelector("#cancelBtn").click(); true');
@@ -509,6 +585,19 @@ async function runBrowserSmoke() {
     const feedback = await cdp.evaluate('localApiFetch("/api/brainstorm?mode=fusion&goal=" + encodeURIComponent("E2E 方案验证目标")).then(response => response.json()).then(data => ({ matched: data.summary.priorVerifications.matched, verified: data.summary.priorVerifications.verified, planStatus: data.fusion.plans[0] && data.fusion.plans[0].priorVerification && data.fusion.plans[0].priorVerification.status }))');
     assert.ok(feedback.matched >= 1, "已验证结论未参与后续方案");
     assert.strictEqual(feedback.planStatus, "verified", "后续方案未标记历史验证");
+    await cdp.evaluate('document.querySelector("#brainstormGoal").value = ""; document.querySelector("#brainstormGoal").focus(); true');
+    await cdp.send("Input.insertText", { text: "把收藏的工具组合成一套可验证的个人工作流" });
+    await clickElement(cdp, "#brainstormGoalBtn");
+    await waitFor(cdp, 'document.querySelector("#brainstormFusion .brainstorm-fusion-card.featured") && !document.querySelector("#brainstormSaveBtn").disabled', "真实需求未生成可保存的融合方案");
+    assert.ok(await cdp.evaluate('document.querySelectorAll("#brainstormFusion [data-brainstorm-entry]").length > 0'), "融合方案缺少可追溯来源");
+    await clickElement(cdp, "#brainstormFusion [data-brainstorm-entry]");
+    await waitFor(cdp, '!document.querySelector("#entryView").hidden && document.querySelector("#entryTitle").textContent.length > 0', "方案来源未打开研究档案");
+    const entryLayout = await cdp.evaluate('({ columns: getComputedStyle(document.querySelector("#entryForm")).gridTemplateColumns.split(" ").length, mediaColumn: getComputedStyle(document.querySelector(".ef-media")).gridColumnStart, back: document.querySelector("#entryBack").textContent })');
+    assert.strictEqual(entryLayout.columns, 2, "桌面研究档案应使用清晰的双栏布局");
+    assert.strictEqual(entryLayout.mediaColumn, "2", "研究档案辅助内容应位于第二栏");
+    assert.strictEqual(entryLayout.back, "← 返回头脑风暴", "研究档案缺少头脑风暴返回语义");
+    await clickElement(cdp, "#entryBack");
+    await waitFor(cdp, '!document.querySelector("#brainstormView").hidden && document.querySelector("#entryView").hidden', "研究档案未返回头脑风暴");
     assert.strictEqual(hash(realData), realBefore, "E2E 不得修改真实 DATA.md");
   } catch (error) {
     functionalError = error;

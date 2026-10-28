@@ -263,15 +263,15 @@ function catTextureSvg(name, catColor, size) {
 }
 
 const CAT_COLORS = {
-  "AI 工具": { d: "#c4b5fd", l: "#7c3aed", a: "#a78bfa", f: "#c4b5fd" },
-  "硬件 & 嵌入式": { d: "#6ee7b7", l: "#059669", a: "#6ee7b7", f: "#6ee7b7" },
-  "前端 & 设计": { d: "#fda4af", l: "#e11d48", a: "#f9a8d4", f: "#fda4af" },
-  "桌面 & 系统": { d: "#7dd3fc", l: "#0284c7", a: "#7dd3fc", f: "#7dd3fc" },
-  "开源项目 & 开发": { d: "#fcd34d", l: "#d97706", a: "#fcd34d", f: "#fcd34d" },
-  "搜索 & OSINT": { d: "#5eead4", l: "#0d9488", a: "#5eead4", f: "#5eead4" },
-  "教程 & 资源": { d: "#fdba74", l: "#ea580c", a: "#fdba74", f: "#fdba74" },
-  "其他": { d: "#d4d4d8", l: "#52525b", a: "#b0aecb", f: "#8fa896" },
-  "收件箱": { d: "#f0abfc", l: "#a21caf", a: "#e879f9", f: "#d8b4fe" },
+  "AI 工具": { d: "#c1addd", l: "#75608e", a: "#c1addd", f: "#c1addd" },
+  "硬件 & 嵌入式": { d: "#a0c9a9", l: "#4b7159", a: "#a0c9a9", f: "#a0c9a9" },
+  "前端 & 设计": { d: "#e0a1ad", l: "#9d5663", a: "#e0a1ad", f: "#e0a1ad" },
+  "桌面 & 系统": { d: "#a1c8d9", l: "#496b79", a: "#a1c8d9", f: "#a1c8d9" },
+  "开源项目 & 开发": { d: "#dec17c", l: "#856125", a: "#dec17c", f: "#dec17c" },
+  "搜索 & OSINT": { d: "#96d0bc", l: "#3b7668", a: "#96d0bc", f: "#96d0bc" },
+  "教程 & 资源": { d: "#e2b084", l: "#95572d", a: "#e2b084", f: "#e2b084" },
+  "其他": { d: "#b4bdac", l: "#60685c", a: "#b4bdac", f: "#b4bdac" },
+  "收件箱": { d: "#d3a5c8", l: "#886078", a: "#d3a5c8", f: "#d3a5c8" },
 };
 function getTheme() {
   const t = document.documentElement.getAttribute("data-theme");
@@ -439,7 +439,7 @@ function archivePanelHtml(item) {
   const error = archiveErrorLabel(archive.lastError);
   const reason = archive.degradationReasons.map(archiveErrorLabel).filter(Boolean).join("；");
   return `<section class="archive-panel archive-${meta.tone}" aria-label="归档状态详情">
-    <div class="archive-panel-head"><div>${archiveStatusHtml(item)}</div><span class="archive-attempt">第 ${archive.attempt} 次尝试</span></div>
+    <div class="archive-panel-head"><div>${archiveStatusHtml(item, true)}</div><span class="archive-attempt">第 ${archive.attempt} 次尝试</span></div>
     <p class="archive-panel-copy">${escapeHtml(meta.description)} · 下次重试：${escapeHtml(archiveTimeLabel(archive.nextRunAt))}</p>
     ${error ? `<p class="archive-error">最近错误：${escapeHtml(error)}</p>` : ""}
     ${reason ? `<p class="archive-reason">处理说明：${escapeHtml(reason)}</p>` : ""}
@@ -452,14 +452,12 @@ function diffBadge(item) {
   return item.difficulty ? `<span class="badge diff">${"★".repeat(item.difficulty)}</span>` : "";
 }
 function catBadge(item) {
-  // 行内只看图标（颜色已隐含分类，悬停 title 看全名）
-  const icon = CAT_ICONS[item.category] || "";
-  return `<span class="badge cat ${catCls(item.category)}" title="${escapeAttr(item.category)}"><span class="cat-icon">${icon}</span></span>`;
+  const icon = CAT_ICONS[item.category] || CAT_ICONS["其他"] || "";
+  return `<span class="badge cat ${catCls(item.category)}" title="${escapeAttr(item.category)}"><span class="cat-icon" aria-hidden="true">${icon}</span><span class="cat-label">${escapeHtml(item.category)}</span></span>`;
 }
 function thumbHtml(item) {
-  // 统一用分类 SVG 图标作缩略图（移除首字母占位与远程封面图，避免隐私泄露与加载延迟）
   const icon = CAT_ICONS[item.category] || CAT_ICONS["其他"] || "";
-  return `<div class="thumb ${catCls(item.category)}"><span class="cat-icon">${icon}</span></div>`;
+  return `<div class="thumb ${catCls(item.category)}" aria-hidden="true"><span class="cat-icon">${icon}</span></div>`;
 }
 function detailRows(item) {
   return item.fields.filter(f => !f.k.includes("简介") && !f.k.includes("封面")).map(f =>
@@ -467,26 +465,30 @@ function detailRows(item) {
 }
 
 function rowHtml(item) {
-  const src = item.url ? domain(item.url) : "-";
+  const src = item.url ? domain(item.url) : "未记录来源";
   const nextStatus = item.status === "pending" ? "进行中" : item.status === "doing" ? "已完成" : "待研究";
+  const summary = item.desc || item.tags.join(" · ");
   return `
   <article class="row ${catCls(item.category)}" data-id="${item.id}" role="listitem" tabindex="0">
-    <input type="checkbox" class="pick" data-pick="${item.id}" aria-label="选择 ${item.id}" title="选择">
-    <span class="id">${item.id}</span>
+    <input type="checkbox" class="pick" data-pick="${item.id}" aria-label="选择 ${escapeAttr(item.name)}" title="选择">
     ${thumbHtml(item)}
-    <span class="name"><span class="txt" title="${escapeAttr(item.name)}">${inline(item.name)}</span></span><span class="cat-slot">${catBadge(item)}</span><span class="difficulty">${diffBadge(item)}</span>
-    <span class="src"><a href="${escapeAttr(item.url || "#")}" target="${item.url ? "_blank" : "_self"}" rel="noopener" title="${escapeAttr(item.url || "")}">${escapeHtml(src)}</a></span>
-    <span class="status ${statusCls(item)}">${statusLabel(item)}<span class="archive-inline">${archiveStatusHtml(item, true)}</span></span>
-    <button type="button" class="row-disclosure chev" aria-expanded="false" aria-controls="detail-${item.id}" aria-label="展开 ${escapeAttr(item.name)} 的详情"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+    <span class="name">
+      <span class="row-heading"><span class="id">${escapeHtml(item.id)}</span><span class="src"><a href="${escapeAttr(item.url || "#")}" target="${item.url ? "_blank" : "_self"}" rel="noopener" title="${escapeAttr(item.url || "")}">${escapeHtml(src)}</a></span></span>
+      <span class="txt" title="${escapeAttr(item.name)}">${inline(item.name)}</span>
+      ${summary ? `<span class="row-summary">${inline(summary)}</span>` : ""}
+    </span>
+    <span class="cat-slot">${catBadge(item)}</span><span class="difficulty">${diffBadge(item)}</span>
+    <span class="status ${statusCls(item)}"><span>${statusLabel(item)}</span><span class="archive-inline">${archiveStatusHtml(item, true)}</span></span>
+    <button type="button" class="row-disclosure chev" aria-expanded="false" aria-controls="detail-${item.id}" aria-label="展开 ${escapeAttr(item.name)} 的详情"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg></button>
   </article>
   <div class="detail-panel" id="detail-${item.id}" data-for="${item.id}" aria-hidden="true" inert><div class="dp-inner"><div class="dp-body">
     ${detailRows(item)}
     ${archivePanelHtml(item)}
     <div class="dp-actions" data-id="${item.id}">
-      <button type="button" class="dp-act" data-act="study" title="研究档案：笔记 / 抓取正文 / 计时">🔬 研究</button>
-      <button type="button" class="dp-act" data-act="open" title="在新标签打开原文"${item.url ? "" : " disabled"}>↗ 原文</button>
-      <button type="button" class="dp-act" data-act="status" title="更新为${nextStatus}">→ ${nextStatus}</button>
-      <button type="button" class="dp-act" data-act="copy" title="复制链接">⧉ 复制</button>
+      <button type="button" class="dp-act" data-act="study" title="研究档案：笔记 / 抓取正文 / 计时">研究档案</button>
+      <button type="button" class="dp-act" data-act="open" title="在新标签打开原文"${item.url ? "" : " disabled"}>打开原文 ↗</button>
+      <button type="button" class="dp-act" data-act="status" title="更新为${nextStatus}">标记为${nextStatus}</button>
+      <button type="button" class="dp-act" data-act="copy" title="复制链接">复制链接</button>
     </div>
   </div></div></div>`;
 }
@@ -512,10 +514,10 @@ function renderList(list) {
     if (anyFolded && folded[it.category]) {
       if (skipCat !== it.category) {
         const cnt = list.filter(x => x.category === it.category).length;
-        out.push(`<div class="cat-fold" data-fold="${escapeAttr(it.category)}">
-          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
-          ${escapeHtml(it.category)} <span class="cnt">${cnt}</span> 项已折叠（双击分类名展开）
-        </div>`);
+        out.push(`<button type="button" class="cat-fold" data-fold="${escapeAttr(it.category)}" aria-label="展开分类 ${escapeAttr(it.category)}">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          ${escapeHtml(it.category)} <span class="cnt">${cnt}</span> 项已折叠 · 点击展开
+        </button>`);
         skipCat = it.category;
       }
       continue;
@@ -594,29 +596,30 @@ let lastBannerMotionKey = null;
 function renderBanner(list) {
   const inner = document.getElementById("bannerInner");
   const cat = state.category;
-  const color = cat ? catColor(cat) : "#e8a33d";
+  const color = cat ? catColor(cat) : getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
   inner.classList.remove(...CATS.map(c => c.cls));
-  inner.classList.add(cat ? catCls(cat) : "c-ai");
+  inner.classList.add(cat ? catCls(cat) : "c-ot");
   inner.style.setProperty("--cat", color);
   const texture = cat ? (CAT_TEXTURES[cat] || CAT_TEXTURES["其他"]) : CAT_TEXTURES["AI 工具"];
   document.getElementById("bannerSvg").innerHTML = texture(color);
+  document.querySelector("#banner .workspace-eyebrow").textContent = cat ? `COLLECTION / ${cat}` : "01 / CAPTURE · STUDY · KEEP";
   if (cat) {
     document.getElementById("bannerTitle").textContent = cat;
-    document.getElementById("bannerSub").textContent = `查看该分类中的 ${list.length} 个项目，继续研究或带入头脑风暴`;
+    document.getElementById("bannerSub").textContent = `这一组收藏了 ${list.length} 条线索。回到具体的内容里，继续研究，或让不同的想法发生碰撞。`;
   } else {
-    document.getElementById("bannerTitle").textContent = "灵感来袭";
-    document.getElementById("bannerSub").textContent = "先把灵感可靠收进来，再在本机整理、研究并推进为结论";
+    document.getElementById("bannerTitle").textContent = "灵感项目库";
+    document.getElementById("bannerSub").textContent = "把值得留下的内容收进来，在本机慢慢研究，让每一条线索都有机会成为结论。";
   }
   document.getElementById("brainstormBridgeLabel").textContent = cat
-    ? `基于“${cat}”项目生成方案`
-    : "基于当前项目生成方案";
+    ? `让“${cat}”与其他灵感碰撞`
+    : "从已有收藏，找到新的可能";
   const np = list.filter(i => i.status === "pending").length;
   const nd = list.filter(i => i.status === "doing").length;
   const nf = list.filter(i => i.status === "done").length;
   const progress = completionProgress(list.length, nf, nd);
   document.getElementById("bannerBadges").innerHTML =
     `<span class="pill">待研究 <b>${np}</b></span><span class="pill">进行中 <b>${nd}</b></span><span class="pill">已完成 <b>${nf}</b></span>`;
-  document.getElementById("bannerNum").innerHTML = `${list.length}<small>ITEMS</small>`;
+  document.getElementById("bannerNum").innerHTML = `${list.length}<small>IDEAS KEPT</small>`;
   document.getElementById("bannerProgressLabel").textContent = `研究推进 ${progress}%`;
   document.getElementById("bannerProgressMeta").textContent = progress === 0 ? "从一条灵感开始" : progress === 100 ? "本组已全部完成" : `${nd + nf} / ${list.length} 已推进`;
   document.getElementById("bannerProgressBar").style.setProperty("--progress", String(progress / 100));
@@ -688,6 +691,8 @@ function render() {
   document.getElementById("subTotal").textContent = `共 ${nTotal} 条 · 完成 ${progress}%`;
   document.getElementById("progressBar").style.setProperty("--progress", String(progress / 100));
   document.getElementById("progressTrack").setAttribute("aria-valuenow", String(progress));
+  document.getElementById("collectionCount").textContent = nTotal === state.items.length
+    ? `${nTotal} 条收藏` : `${nTotal} / ${state.items.length} 条匹配`;
 
   const isBoard = state.view === "board";
   document.getElementById("listView").hidden = isBoard;
@@ -1193,7 +1198,7 @@ function buildCats() {
   const wrap = document.getElementById("cats");
   const chip = (name, count, active) => {
     const folded = state.fold[name] ? " folded" : "";
-    return `<button class="chip ${catCls(name)}${active ? " active" : ""}${folded}" data-cat="${escapeAttr(name)}">${escapeHtml(name)} <span class="c">${count}</span></button>`;
+    return `<button type="button" class="chip ${catCls(name)}${active ? " active" : ""}${folded}" data-cat="${escapeAttr(name)}" aria-pressed="${active}" title="单击筛选；Alt + Enter 折叠或展开">${escapeHtml(name)} <span class="c">${count}</span></button>`;
   };
   wrap.innerHTML =
     chip("全部", state.items.length, state.category === null) +
@@ -1371,11 +1376,14 @@ document.getElementById("sortHead").addEventListener("click", e => {
   render();
 });
 function updateSortHead() {
-  document.querySelectorAll("#sortHead .sh-btn").forEach(b => {
-    const active = b.dataset.sf === state.sortField;
-    b.classList.toggle("active", active);
-    b.classList.toggle("asc", active && state.sortDir === "asc");
-    b.classList.toggle("desc", active && state.sortDir === "desc");
+  document.querySelectorAll("#sortHead .sh-btn").forEach(button => {
+    const active = button.dataset.sf === state.sortField;
+    const label = button.querySelector(".lbl").textContent;
+    button.classList.toggle("active", active);
+    button.classList.toggle("asc", active && state.sortDir === "asc");
+    button.classList.toggle("desc", active && state.sortDir === "desc");
+    button.setAttribute("aria-pressed", String(active));
+    button.setAttribute("aria-label", `按${label}排序${active ? (state.sortDir === "asc" ? "，当前升序" : "，当前降序") : ""}`);
   });
 }
 document.getElementById("cats").addEventListener("click", e => {
@@ -1385,18 +1393,24 @@ document.getElementById("cats").addEventListener("click", e => {
   buildCats();
   render();
 });
-
-/* 分组折叠：双击 chip 折叠/展开该分类 */
-document.getElementById("cats").addEventListener("dblclick", e => {
-  const chip = e.target.closest(".chip");
-  if (!chip || !chip.dataset.cat || chip.dataset.cat === "全部") return;
-  const c = chip.dataset.cat;
-  state.fold[c] = !state.fold[c];
+function toggleCategoryFold(category) {
+  if (!category || category === "全部") return;
+  state.fold[category] = !state.fold[category];
   buildCats();
   render();
+  requestAnimationFrame(() => document.querySelector(`#cats [data-cat="${CSS.escape(category)}"]`)?.focus({ preventScroll: true }));
+}
+document.getElementById("cats").addEventListener("dblclick", e => {
+  const chip = e.target.closest(".chip");
+  if (chip) toggleCategoryFold(chip.dataset.cat);
 });
-
-/* 点击折叠块展开 */
+document.getElementById("cats").addEventListener("keydown", e => {
+  if (e.key !== "Enter" || !e.altKey) return;
+  const chip = e.target.closest(".chip");
+  if (!chip) return;
+  e.preventDefault();
+  toggleCategoryFold(chip.dataset.cat);
+});
 document.getElementById("listView").addEventListener("click", e => {
   const fold = e.target.closest(".cat-fold");
   if (!fold) return;
@@ -1404,12 +1418,15 @@ document.getElementById("listView").addEventListener("click", e => {
   buildCats();
   render();
 });
-
-/* 密度切换 */
 function setDensity(d) {
-  document.body.classList.toggle("density-compact", d === "compact");
-  document.querySelectorAll("#density button").forEach(b => b.classList.toggle("active", b.dataset.d === d));
-  try { localStorage.setItem("board_density", d); } catch (_) {}
+  const density = d === "compact" ? "compact" : "cozy";
+  document.body.classList.toggle("density-compact", density === "compact");
+  document.querySelectorAll("#density button").forEach(button => {
+    const active = button.dataset.d === density;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  try { localStorage.setItem("board_density", density); } catch (_) {}
 }
 document.getElementById("density").addEventListener("click", e => {
   const btn = e.target.closest("button");
@@ -1795,19 +1812,67 @@ function closeHeaderMenus(restoreFocus = false) {
   setHeaderMenu("morePanel", "moreBtn", false);
   if (restoreFocus && active) active.focus({ preventScroll: true });
 }
+const THEME_PRESETS = Object.freeze({
+  light: { label: "纸间暖白", color: "#f3f2ec" },
+  dark: { label: "静谧墨色", color: "#151b17" },
+  aurora: { label: "极光夜幕", color: "#171c27" },
+  forest: { label: "森林手账", color: "#192219" },
+});
 function applyTheme(t) {
-  document.documentElement.setAttribute("data-theme", t);
-  try { localStorage.setItem("board_theme", t); } catch (_) {}
-  document.querySelectorAll("#themePanel .tp-item").forEach(b =>
-    b.classList.toggle("active", b.dataset.t === t));
-  if (state.items.length) renderBanner(filtered()); // 横幅 --cat 随主题刷新
+  const theme = THEME_PRESETS[t] ? t : "light";
+  const preset = THEME_PRESETS[theme];
+  document.documentElement.setAttribute("data-theme", theme);
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", preset.color);
+  try { localStorage.setItem("board_theme", theme); } catch (_) {}
+  document.querySelectorAll("#themePanel .tp-item").forEach(button => {
+    const selected = button.dataset.t === theme;
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-checked", String(selected));
+  });
+  const themeButton = document.getElementById("themeBtn");
+  themeButton.title = `切换主题 · 当前${preset.label}`;
+  themeButton.setAttribute("aria-label", themeButton.title);
+  if (state.items.length) renderBanner(filtered());
 }
 (function initTheme() {
   let t = null;
   try { t = localStorage.getItem("board_theme"); } catch (_) {}
-  // 默认浅色主题（晨曦暖白），不跟随系统深色
   applyTheme(t || "light");
 })();
+function handleHeaderMenuKeydown(event, panelId, buttonId) {
+  const panel = document.getElementById(panelId);
+  const open = panel.classList.contains("open");
+  if (event.key === "Escape" && open) {
+    event.preventDefault();
+    event.stopPropagation();
+    setHeaderMenu(panelId, buttonId, false);
+    document.getElementById(buttonId).focus({ preventScroll: true });
+    return;
+  }
+  const selectedItem = open && event.target.closest ? event.target.closest("button") : null;
+  if (selectedItem && panel.contains(selectedItem) && (event.key === "Enter" || event.key === " ")) {
+    event.preventDefault();
+    event.stopPropagation();
+    selectedItem.click();
+    return;
+  }
+  if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+  event.preventDefault();
+  event.stopPropagation();
+  if (!open) setHeaderMenu(panelId, buttonId, true);
+  const items = [...panel.querySelectorAll("button:not(:disabled)")].filter(item => item.getClientRects().length);
+  if (!items.length) return;
+  const current = items.indexOf(document.activeElement);
+  const next = event.key === "Home" ? 0 : event.key === "End" ? items.length - 1
+    : event.key === "ArrowUp" ? (current <= 0 ? items.length - 1 : current - 1)
+      : (current < 0 || current === items.length - 1 ? 0 : current + 1);
+  requestAnimationFrame(() => items[next].focus({ preventScroll: true }));
+}
+for (const [panelId, buttonId] of [["themePanel", "themeBtn"], ["morePanel", "moreBtn"]]) {
+  for (const id of [panelId, buttonId]) {
+    document.getElementById(id).addEventListener("keydown", event => handleHeaderMenuKeydown(event, panelId, buttonId));
+  }
+}
 document.getElementById("themeBtn").addEventListener("click", e => {
   e.stopPropagation();
   const open = !document.getElementById("themePanel").classList.contains("open");
@@ -1903,6 +1968,7 @@ function syncDialogFocus() {
     dialogBackground.forEach(element => { if (!open.contains(element)) element.inert = true; });
     document.body.classList.add("dialog-open");
     requestAnimationFrame(() => {
+      if (dialogFocusState.active !== open || !open.classList.contains("open")) return;
       const preferred = open.querySelector("[autofocus]") ||
         open.querySelector("#fetchUrl, #commandInput") || open.querySelector(".modal-x") || dialogFocusable(open)[0];
       if (preferred) preferred.focus({ preventScroll: true });
@@ -1912,10 +1978,16 @@ function syncDialogFocus() {
   if (!open && dialogFocusState.active) {
     dialogBackground.forEach(element => { element.inert = false; });
     document.body.classList.remove("dialog-open");
+    const closedDialog = dialogFocusState.active;
     const opener = dialogFocusState.opener;
     dialogFocusState.active = null;
     dialogFocusState.opener = null;
-    if (opener && opener.isConnected) requestAnimationFrame(() => opener.focus({ preventScroll: true }));
+    if (opener && opener.isConnected) requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (!active || active === document.body || active === document.documentElement || closedDialog.contains(active)) {
+        opener.focus({ preventScroll: true });
+      }
+    });
   }
 }
 document.querySelectorAll(".modal-overlay, .study-overlay").forEach(dialog => {
@@ -2050,7 +2122,9 @@ function openCaptureModal() {
     b.setAttribute("aria-pressed", String(active));
   });
   modal.classList.add("open");
-  setTimeout(() => document.getElementById("fetchUrl").focus(), 80);
+  setTimeout(() => {
+    if (modal.classList.contains("open")) document.getElementById("fetchUrl").focus();
+  }, 80);
 }
 document.querySelectorAll("[data-capture-trigger]").forEach(button => button.addEventListener("click", openCaptureModal));
 document.getElementById("listView").addEventListener("click", event => {
@@ -2291,8 +2365,8 @@ function renderDaily(items = filtered()) {
   cover.classList.add(catCls(item.category));
   cover.style.setProperty("--cat", catColor(item.category));
   cover.innerHTML = item.image
-    ? `<img src="${escapeAttr(item.image)}" alt="" loading="lazy">`
-    : `<div class="ph">${escapeHtml(item.name.slice(0, 1))}</div>`;
+    ? `<img src="${escapeAttr(item.image)}" alt="" loading="lazy" referrerpolicy="no-referrer">`
+    : `<div class="ph" aria-hidden="true">${CAT_ICONS[item.category] || CAT_ICONS["其他"] || ""}</div>`;
   document.getElementById("dTitle").textContent = item.name;
   document.getElementById("dMeta").innerHTML =
     `<span class="badge cat ${catCls(item.category)}">${escapeHtml(item.category)}</span><span class="badge diff">${"★".repeat(item.difficulty || 1)}</span><span class="status st-${item.status}">${statusLabel(item)}</span>`;
