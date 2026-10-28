@@ -30,6 +30,10 @@ $tests = @(
   "lib/upgrade.test.js",
   "lib/volume-lock.test.js"
 )
+$originalEnvironment = @{}
+foreach ($name in @("README_FILE", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY")) {
+  $originalEnvironment[$name] = [Environment]::GetEnvironmentVariable($name)
+}
 
 try {
   New-Item -ItemType Directory -Path $drillRoot -Force | Out-Null
@@ -77,6 +81,14 @@ try {
   }
   Write-Host "Recovery drill passed: interruption, locks, ambiguity, upgrade/rollback, verification failure, and idempotency."
 } finally {
+  foreach ($name in $originalEnvironment.Keys) {
+    $value = $originalEnvironment[$name]
+    if ($null -eq $value) {
+      Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
+    } else {
+      Set-Item -LiteralPath "Env:$name" -Value $value
+    }
+  }
   if ((Test-Path -LiteralPath $drillRoot) -and $drillRoot.StartsWith($safePrefix, [StringComparison]::OrdinalIgnoreCase)) {
     Remove-Item -LiteralPath $drillRoot -Recurse -Force
   }
