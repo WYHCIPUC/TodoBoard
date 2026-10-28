@@ -216,6 +216,19 @@ try {
   $reportedVersion = (& $nodeExe --version).Trim()
   if ($LASTEXITCODE -ne 0 -or $reportedVersion -ne "v$($runtime.version)") { throw "Extracted runtime reported an unexpected version: $reportedVersion" }
 
+  function Invoke-ProductionDependencyInstall {
+    param([string]$NpmCommand, [string]$StageDirectory, [int]$MaxAttempts = 3)
+    for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
+      & $NpmCommand ci --omit=dev --no-audit --no-fund --prefix $StageDirectory
+      if ($LASTEXITCODE -eq 0) { return }
+      if ($attempt -lt $MaxAttempts) {
+        Write-Warning "Production dependency installation failed (attempt $attempt/$MaxAttempts); retrying."
+        Start-Sleep -Seconds 5
+      }
+    }
+    throw "Production dependency installation or native lock build failed after $MaxAttempts attempts."
+  }
+
   $originalPath = $env:PATH
   $originalCl = $env:CL
   $originalLink = $env:LINK
@@ -227,8 +240,7 @@ try {
     $env:LINK = (([string]$originalLink).Trim() + " /Brepro").Trim()
     $env:_LINK_ = (([string]$originalLinkTail).Trim() + " /Brepro /DEBUG:NONE").Trim()
     $env:SOURCE_DATE_EPOCH = "315532800"
-    & $npmCmd ci --omit=dev --no-audit --no-fund --prefix $stageDir
-    if ($LASTEXITCODE -ne 0) { throw "Production dependency installation or native lock build failed." }
+    Invoke-ProductionDependencyInstall -NpmCommand $npmCmd -StageDirectory $stageDir
   } finally {
     $env:PATH = $originalPath
     $env:CL = $originalCl
