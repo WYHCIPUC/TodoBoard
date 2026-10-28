@@ -16,7 +16,7 @@ npm test -- --test scripts/build-release.test.js --test scripts/build-portable.t
 - [ ] 执行 `scripts/recovery-drill.ps1`，覆盖中断写入、锁竞争/owner 崩溃、歧义停止、升级/回滚、验证失败、确认恢复和幂等重跑；仅使用一次性数据。
 - [ ] 在两个全新输出目录运行 `scripts/build-executable.ps1`，然后用 `scripts/release-drill.ps1 -ComparisonDirectory` 证明全部资产逐字节一致。
 - [ ] 对同一 EXE 执行 `scripts/smoke-executable.ps1`；确认离线启动、HTTP 读写、健康检查、二次启动复用和仓库 `DATA.md` 未变化。
-- [ ] fresh extraction 的源码包精确匹配 `scripts/release-allowlist.txt`，便携包清单和 Node.js 24.16.0 运行时哈希匹配 `scripts/runtime-node.json`。
+- [ ] fresh extraction 的源码包精确匹配 `scripts/release-allowlist.txt`，便携包清单和 Node.js 24.22.1 运行时哈希匹配 `scripts/runtime-node.json`。
 - [ ] `SHA256SUMS.txt` 名称大小写完全一致，列出且验证两个 manifest、源码 ZIP、便携 ZIP 和 EXE，不包含自身。
 - [ ] 显式扫描包、候选 Git 树与拟上传清单：无用户数据、备份、`.env`、Cookie/token/平台 secret、隧道配置、旧包、视频或未列文件。
 

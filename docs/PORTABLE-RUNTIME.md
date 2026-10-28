@@ -4,7 +4,7 @@ v2.3.0 提供 `linggankanban-2.3.0-windows-portable-x64.zip` 与 `linggankanban-
 
 ## 固定运行时
 
-运行时唯一来源是 `scripts/runtime-node.json`：Node.js 24.16.0、官方 Windows x64 ZIP、ZIP SHA-256 与解包后 `node.exe` SHA-256 均固定在候选提交中。构建不会查询 `latest` 或在运行时解释在线校验表；下载内容与任一固定哈希不符即停止。
+运行时唯一来源是 `scripts/runtime-node.json`：Node.js 24.22.1、官方 Windows x64 ZIP、ZIP SHA-256 与解包后 `node.exe` SHA-256 均固定在候选提交中。构建不会查询 `latest` 或在运行时解释在线校验表；下载内容与任一固定哈希不符即停止。
 
 便携包包含：
 

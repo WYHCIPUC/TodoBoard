@@ -10,7 +10,7 @@
 
 ### 便携版与源码版
 
-便携版下载 `linggankanban-2.3.0-windows-portable-x64.zip`，完整解压到有写权限的目录后双击 `start-portable.bat`。包内固定为 Node.js 24.16.0，无需系统 Node.js。不要在压缩包预览窗口内运行。
+便携版下载 `linggankanban-2.3.0-windows-portable-x64.zip`，完整解压到有写权限的目录后双击 `start-portable.bat`。包内固定为 Node.js 24.22.1，无需系统 Node.js。不要在压缩包预览窗口内运行。
 
 源码版需要 Node.js 22 或 24；Node.js 20 已停止支持：
 
